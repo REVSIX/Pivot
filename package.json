@@ -1,0 +1,48 @@
+{
+  "name": "hinge-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local-first robotics workbench for LazyVim and MuJoCo",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.12"
+  },
+  "scripts": {
+    "start": "node server/main.ts",
+    "dev": "node --watch server/main.ts --dev",
+    "build": "npm run check && vite build",
+    "check": "tsc --noEmit",
+    "test": "node --test tests/*.test.ts",
+    "test:sim": "node scripts/test-python.mjs sim",
+    "setup:editor": "node scripts/setup-editor.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "mcap": "node scripts/mcap.mjs",
+    "test:mcap": "node scripts/test-python.mjs mcap",
+    "test:native": "node --test tests/native.test.mjs"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
+    "express": "5.3.0",
+    "ws": "8.22.1"
+  },
+  "optionalDependencies": {
+    "node-pty": "1.1.0"
+  },
+  "devDependencies": {
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/instrument-sans": "5.3.0",
+    "@tailwindcss/vite": "4.3.5",
+    "@types/express": "5.0.6",
+    "@types/node": "24.19.2",
+    "@types/ws": "8.18.2",
+    "tailwindcss": "4.3.5",
+    "typescript": "5.9.3",
+    "vite": "7.3.7"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "node-pty@1.1.0": true
+  }
+}

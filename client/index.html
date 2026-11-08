@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#191a23" />
+    <title>hinge · robotics workbench</title>
+    <link rel="icon" href="/hinge.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <div id="app" class="mx-auto flex min-h-screen flex-col">
+      <header class="mast">
+        <a class="brand" href="./" aria-label="Hinge home"
+          ><span data-icon="brand"></span>hinge<span class="brand-dot">.</span></a
+        >
+        <button id="folder" class="folder-link" title="Open a project folder">
+          <span data-icon="folder"></span><span id="project-label">workspace</span
+          ><span data-icon="chevron"></span>
+        </button>
+        <button id="commands" class="command-button" title="Command palette">
+          <span data-icon="command"></span><span>commands</span><kbd>ctrl shift p</kbd>
+        </button>
+      </header>
+      <main class="flex-1">
+        <nav class="modes" aria-label="Workbench views">
+          <button data-view="editor"><span data-icon="code"></span>editor</button><i></i>
+          <button data-view="simulation" aria-current="page">
+            <span data-icon="sim"></span>simulation</button
+          ><i></i>
+          <button data-view="telemetry"><span data-icon="wave"></span>telemetry</button>
+        </nav>
+        <div class="heading">
+          <div>
+            <div class="eyebrow">
+              <span class="gold-stroke"></span><span id="context">model workspace</span>
+            </div>
+            <h1 id="title">simulation</h1>
+          </div>
+          <button id="primary" class="primary"></button>
+        </div>
+        <section id="simulation" class="view">
+          <div class="instrument">
+            <div class="scene">
+              <canvas
+                id="drawing"
+                aria-label="Projected body and site positions from the MuJoCo capture"
+              ></canvas>
+              <div class="scene-top">
+                <span><b class="little-cross">+</b> model view</span><span>xz plane</span>
+              </div>
+              <div class="scene-bottom">
+                <span>mujoco <span id="engine"></span></span
+                ><button id="trace" aria-pressed="true">trajectory on</button>
+              </div>
+            </div>
+            <aside class="inspector">
+              <h2>joint state</h2>
+              <div id="joint-list"></div>
+              <div id="specs"></div>
+            </aside>
+          </div>
+        </section>
+        <section id="telemetry" class="view" hidden><div id="channels"></div></section>
+        <section id="editor" class="view" hidden>
+          <div id="editor-intro">
+            <div class="editor-list">
+              <h2>project files</h2>
+              <div id="files"></div>
+            </div>
+            <div class="editor-meta">
+              <h2>git</h2>
+              <p id="git-info"></p>
+              <p>Use <code>:HingeGit</code> for changed files inside LazyVim.</p>
+            </div>
+          </div>
+          <div id="terminal" hidden></div>
+        </section>
+        <div id="empty" hidden><p id="empty-text"></p></div>
+        <div id="transport">
+          <button id="play" aria-label="Play capture"><span data-icon="play"></span></button>
+          <span id="clock">0.000 <small>s</small></span
+          ><input id="scrub" type="range" min="0" value="0" aria-label="Capture timeline" /><span
+            id="duration"
+          ></span>
+          <button id="speed" aria-label="Playback speed">1×</button>
+        </div>
+        <div class="subline">
+          <span id="source"></span
+          ><span id="hints"><kbd>space</kbd> play / pause <kbd>r</kbd> run</span>
+        </div>
+        <div id="notice" role="status" aria-live="polite"></div>
+      </main>
+      <footer>
+        <div id="player"></div>
+        <div class="footrow">
+          <button id="spotify">
+            <span data-icon="spotify"></span>spotify<span class="footer-sep">/</span
+            ><span id="player-state">open player</span>
+          </button>
+          <span class="local"><i></i><span id="connection">connecting</span></span>
+        </div>
+      </footer>
+    </div>
+    <dialog id="dialog" aria-labelledby="dialog-title">
+      <div class="dialog-head">
+        <h2 id="dialog-title"></h2>
+        <button id="dismiss" aria-label="Dismiss"><kbd>esc</kbd></button>
+      </div>
+      <div id="dialog-body"></div>
+    </dialog>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
