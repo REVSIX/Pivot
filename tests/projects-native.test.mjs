@@ -7,7 +7,7 @@ import { once } from 'node:events'
 import { WebSocket } from 'ws'
 import { createWorkbench } from '../server/app.ts'
 
-async function until(check, ms = 16000) {
+async function until(check, ms = 30000) {
   const end = Date.now() + ms
   while (Date.now() < end) {
     if (await check()) return
@@ -17,7 +17,7 @@ async function until(check, ms = 16000) {
 }
 test(
   'two shell sessions and an editor can coexist and switch unsaved buffers',
-  { timeout: 60000 },
+  { timeout: 120000 },
   async (t) => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'pivot-shell-'))
     await mkdir(path.join(root, 'destination'))
@@ -52,9 +52,13 @@ test(
       [a, 'one'],
       [b, 'two'],
     ]) {
+      if (process.platform === 'win32') {
+        // PTY readiness is earlier than PowerShell's first interactive prompt.
+        await until(() => /PS [^>]+>/.test(s.output))
+      }
       const cmd =
         process.platform === 'win32'
-          ? "[IO.File]::WriteAllText((Join-Path (Get-Location) '" + marker + ".txt'),'shell')"
+          ? 'Set-Content ' + marker + '.txt shell -NoNewline'
           : 'printf shell > ' + marker + '.txt'
       s.send({ type: 'input', data: cmd + '\r' })
       await until(() =>

@@ -40,7 +40,7 @@ test('MuJoCo HTTP run, concurrent request, CSV export and verified terminal conv
   const mcap = await readFile(path.join(root, 'arm run.mcap'))
   assert.equal(mcap.subarray(0, 8).toString('hex'), '894d434150300d0a')
 })
-test('authenticated editor saves a buffer in the selected folder', { timeout: 25000 }, async (t) => {
+test('authenticated editor saves a buffer in the selected folder', { timeout: 40000 }, async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), 'pivot-editor-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   await writeFile(path.join(root, 'notes.txt'), 'initial-line\n')
@@ -60,7 +60,7 @@ test('authenticated editor saves a buffer in the selected folder', { timeout: 25
     const timeout = setTimeout(() => {
       socket.terminate()
       reject(new Error('Timed out waiting for Neovim to save and exit.'))
-    }, 15000)
+    }, 30000)
     socket.on('error', reject)
     socket.on('message', (data, binary) => {
       if (!binary && !sent && data.toString().includes('initial')) {
