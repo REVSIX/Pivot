@@ -31,6 +31,13 @@ jobs:
       - name: Build MSI
         shell: pwsh
         run: ./packaging/build.ps1 -OutputDirectory "$env:RUNNER_TEMP/artifacts"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pivot-windows-x64
+          path: |
+            ${{ runner.temp }}/artifacts/*.msi
+            ${{ runner.temp }}/artifacts/*.sha256
+          if-no-files-found: error
       - name: Install and exercise desktop
         shell: pwsh
         run: |
@@ -44,13 +51,6 @@ jobs:
             $p = Start-Process msiexec.exe -ArgumentList @('/x',('"' + $msi + '"'),'/quiet','/norestart') -Wait -PassThru -WindowStyle Hidden
             if ($p.ExitCode -ne 0) { throw "MSI uninstall failed ($($p.ExitCode))" }
           }
-      - uses: actions/upload-artifact@v4
-        with:
-          name: pivot-windows-x64
-          path: |
-            ${{ runner.temp }}/artifacts/*.msi
-            ${{ runner.temp }}/artifacts/*.sha256
-          if-no-files-found: error
 
   draft:
     needs: candidate

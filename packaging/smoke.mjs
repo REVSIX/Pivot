@@ -18,10 +18,14 @@ socket.listen(0,'127.0.0.1');await once(socket,'listening')
 const debugPort=socket.address().port
 await new Promise(resolve=>socket.close(resolve))
 const debuggerBase='http://127.0.0.1:'+debugPort
-async function pageTarget() {
+async function pageTarget(child) {
   for(let i=0;i<160;i++){
+    if(child.exitCode!==null || child.signalCode!==null)
+      throw new Error('Pivot exited before loading the workbench: '+(child.exitCode ?? child.signalCode))
+    const startupError=await readFile(path.join(profile,'startup-error.txt'),'utf8').catch(()=>null)
+    if(startupError)throw new Error('Pivot startup failed:\n'+startupError)
     try {
-      const targets=await (await fetch(debuggerBase+'/json/list')).json()
+      const targets=await (await fetch(debuggerBase+'/json/list',{signal:AbortSignal.timeout(1000)})).json()
       const page=targets.find(t=>t.type==='page' && t.url.startsWith('http://127.0.0.1:') && /pivot/i.test(t.title))
       if(page)return page
     }catch {}
@@ -38,7 +42,7 @@ async function session(args) {
   const ended=once(child,'exit')
   let cdp
   try {
-    const page=await pageTarget()
+    const page=await pageTarget(child)
     const origin=new URL(page.url).origin
     const session=await (await fetch(origin+'/api/session')).json()
     assert.ok(session.token)
