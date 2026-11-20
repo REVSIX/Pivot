@@ -1,0 +1,18 @@
+<mujoco model="Cart-pole">
+  <compiler angle="radian"/>
+  <option timestep="0.002" gravity="0 0 -9.81"/>
+  <worldbody>
+    <geom type="box" size="1.7 0.06 0.025" pos="0 0 -0.125"/>
+    <body name="cart">
+      <joint name="cart travel" type="slide" axis="1 0 0" damping="0.12" limited="true" range="-1.5 1.5"/>
+      <geom type="box" size="0.18 0.12 0.10" mass="1"/>
+      <body name="pole" pos="0 0 0.10">
+        <joint name="pole angle" type="hinge" axis="0 1 0" damping="0.04"/>
+        <geom type="capsule" fromto="0 0 0 0 0 0.68" size="0.025" mass="0.20"/>
+        <site name="pole tip" pos="0 0 0.68" size="0.035"/>
+      </body>
+    </body>
+  </worldbody>
+  <actuator><motor name="cart drive" joint="cart travel" ctrlrange="-5 5"/></actuator>
+  <keyframe><key name="release" qpos="0 0.22" qvel="0 0" ctrl="0"/></keyframe>
+</mujoco>

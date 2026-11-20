@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "Run PD controller": "python controller.py",
+    "Inspect compiled model": "python scripts/inspect_model.py",
+    "List telemetry channels": "telem list",
+    "Graph controller signals": "telem graph torque position_error",
+    "Record telemetry for 8 seconds": "telem record --seconds 8"
+  }
+}

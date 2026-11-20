@@ -12,6 +12,10 @@
       </body>
     </body>
   </worldbody>
-  <keyframe><key name="release" qpos="-0.94 1.68"/></keyframe>
+  <actuator>
+    <motor name="shoulder drive" joint="shoulder" ctrlrange="-6 6"/>
+    <motor name="elbow drive" joint="elbow" ctrlrange="-4 4"/>
+  </actuator>
+  <keyframe><key name="release" qpos="0.48 -0.13" qvel="-0.2 0.05" ctrl="0.24 -0.11"/></keyframe>
 </mujoco>
 

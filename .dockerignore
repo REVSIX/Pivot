@@ -1,0 +1,9 @@
+**
+!simulator/
+!simulator/*.py
+!simulator/*requirements.txt
+!scripts/
+!scripts/csv_to_mcap.py
+!examples/
+!examples/pendulum/
+!examples/pendulum/pendulum.xml

@@ -5,7 +5,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "simulator"))
-from run import inspect_xml, simulate
+from run import Simulation, inspect_xml, simulate
 
 
 class SimulationTest(unittest.TestCase):
@@ -30,7 +30,7 @@ class SimulationTest(unittest.TestCase):
             '<include file="outside.xml"/>',
             "<extension/>",
             '<replicate count="99999"/>',
-            "<asset/>",
+            '<asset><mesh name="external" file="outside.stl"/></asset>',
             '<size memory="10G"/>',
             '<compiler assetdir="/"/>',
             '<option timestep="1e-12"/>',
@@ -41,3 +41,21 @@ class SimulationTest(unittest.TestCase):
         ]:
             with self.subTest(part=part), self.assertRaises(ValueError):
                 inspect_xml(f"<mujoco>{part}</mujoco>".encode())
+
+    def test_file_free_project_model(self):
+        simulation = Simulation(b"""
+        <mujoco model="project">
+          <!-- A documented project model with renderer settings. -->
+          <visual><global offwidth="1280" offheight="720"/></visual>
+          <asset><material name="blue" rgba="0 0 1 1" shininess=".5"/></asset>
+          <worldbody>
+            <light pos="0 0 5" directional="true"/>
+            <body name="mass">
+              <joint type="slide" frictionloss=".1"/>
+              <geom type="sphere" size=".1" mass="1" material="blue"/>
+            </body>
+          </worldbody>
+        </mujoco>
+        """)
+        simulation.step(1)
+        self.assertGreater(simulation.sample()["t"], 0)

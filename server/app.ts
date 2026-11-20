@@ -7,6 +7,10 @@ import { base } from '../scripts/runtime.mjs'
 import { Fault, project, example } from './workspace.ts'
 import { runModel } from './simulation.ts'
 import { attachEditor } from './editor.ts'
+import { projectRoutes } from './project-api.ts'
+import { telemetryRoutes } from './telemetry.ts'
+import { liveSimulationRoutes } from './live-simulation.ts'
+import { monkeytypeThemes } from './monkeytype.ts'
 
 export async function createWorkbench(options: { root: string; dev?: boolean }) {
   const root = await realpath(options.root)
@@ -47,13 +51,16 @@ export async function createWorkbench(options: { root: string; dev?: boolean }) 
     res.json({ token, initial: root === path.dirname(example) ? 'pendulum' : '.' }),
   )
   app.use('/api', (req, res, next) => {
-    if (req.get('X-Hinge-Token') !== token) {
-      res.status(403).json({ error: 'Reload to reconnect to Hinge.' })
+    if (req.get('X-Pivot-Token') !== token) {
+      res.status(403).json({ error: 'Reload to reconnect to Pivot.' })
       return
     }
     next()
   })
-  app.use('/api', express.json({ limit: '4kb' }))
+  app.use('/api', express.json({ limit: '2mb' }))
+  app.get('/api/themes/monkeytype',async(_,res)=>res.json(await monkeytypeThemes()))
+  const live = liveSimulationRoutes(root,host,token)
+  app.use('/api', projectRoutes(root), telemetryRoutes(), live.router)
   app.get('/api/project', async (req, res) => {
     res.json(await project(root, typeof req.query.folder === 'string' ? req.query.folder : '.'))
   })
@@ -82,7 +89,7 @@ export async function createWorkbench(options: { root: string; dev?: boolean }) 
       server: {
         middlewareMode: true,
         hmr: { server, path: '/vite-hmr' },
-        fs: { allow: [path.join(base, 'client'), path.join(base, 'node_modules')] },
+        fs: { allow: [path.join(base, 'client'), path.join(base, 'node_modules'), path.join(base, 'shared')] },
       },
     })
     app.use(dev.middlewares)
@@ -99,6 +106,7 @@ export async function createWorkbench(options: { root: string; dev?: boolean }) 
     server,
     close: async () => {
       simulation?.abort()
+      live.close()
       closeEditor()
       await closeDev?.()
       server.closeAllConnections()

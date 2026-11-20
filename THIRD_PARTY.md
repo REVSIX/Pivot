@@ -1,8 +1,9 @@
 # Upstream integration notes
 
-| Project | Upstream terms | How Hinge uses it |
+| Project | Upstream terms | How Pivot uses it |
 | --- | --- | --- |
-| Monkeytype | GPL-3.0 | Visual reference for a quiet workspace, minimal chrome, and a searchable keyboard menu. The Hinge interface, wordmark, diagrams, and source are original. [Repository and license](https://github.com/monkeytypegame/monkeytype) |
+| Monkeytype | GPL-3.0 | Visual reference for a quiet workspace, minimal chrome, and a searchable keyboard menu. The Pivot interface, wordmark, diagrams, and source are original. [Repository and license](https://github.com/monkeytypegame/monkeytype) |
+| Lucide | ISC | Settings gear. [Icon](https://lucide.dev/icons/settings) |
 | LazyVim | Apache-2.0 | Imported as a pinned Neovim plugin spec. Setup and plugin locking are explicit and isolated per checkout. [Repository](https://github.com/LazyVim/LazyVim) · [Requirements](https://www.lazyvim.org/) |
 | lazy.nvim and TokyoNight | Apache-2.0 | Upstream plugin manager and native editor theme. Each additional plugin keeps its own license. [lazy.nvim](https://github.com/folke/lazy.nvim) · [TokyoNight](https://github.com/folke/tokyonight.nvim) |
 | Neovim | Apache-2.0 with Vim-licensed portions | External executable in a local pseudoterminal. No Neovim binary is distributed in the source archive. [License](https://github.com/neovim/neovim/blob/master/LICENSE.txt) |

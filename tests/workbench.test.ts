@@ -12,7 +12,7 @@ import { inside, project, example } from '../server/workspace.ts'
 import { csv, type Capture } from '../client/src/model.ts'
 
 test('folder resolution confines canonical paths, including junctions', async (t) => {
-  const scratch = await mkdtemp(path.join(tmpdir(), 'hinge-path-'))
+  const scratch = await mkdtemp(path.join(tmpdir(), 'pivot-path-'))
   t.after(() => rm(scratch, { recursive: true, force: true }))
   const root = await realpath(
     (await mkdir(path.join(scratch, 'root'), { recursive: true })) as string,
@@ -35,7 +35,7 @@ test('folder resolution confines canonical paths, including junctions', async (t
   }
 })
 test('project status uses the chosen Git folder and omits private entries', async (t) => {
-  const root = await realpath(await mkdtemp(path.join(tmpdir(), 'hinge-git-')))
+  const root = await realpath(await mkdtemp(path.join(tmpdir(), 'pivot-git-')))
   t.after(() => rm(root, { recursive: true, force: true }))
   execFileSync('git', ['init', '-q', '-b', 'test-branch', root])
   await writeFile(path.join(root, 'robot.xml'), 'ok')
@@ -66,7 +66,7 @@ test('local API enforces host, origin, session and file restrictions', async (t)
   assert.equal((await fetch(url + '/api/project')).status, 403)
   const { token, initial } = await (await fetch(url + '/api/session')).json()
   assert.equal(initial, 'pendulum')
-  const headers = { 'X-Hinge-Token': token, 'Content-Type': 'application/json' }
+  const headers = { 'X-Pivot-Token': token, 'Content-Type': 'application/json' }
   assert.equal((await fetch(url + '/api/project?folder=..', { headers })).status, 400)
   const p = await (await fetch(url + '/api/project?folder=pendulum', { headers })).json()
   assert.equal(p.demo, true)
@@ -78,8 +78,8 @@ test('local API enforces host, origin, session and file restrictions', async (t)
   })
   assert.equal(bad.status, 400)
   for (const [origin, protocol] of [
-    [url, 'hinge.invalid'],
-    ['https://example.com', 'hinge.' + token],
+    [url, 'pivot.invalid'],
+    ['https://example.com', 'pivot.' + token],
   ]) {
     const ws = new WebSocket(url.replace('http:', 'ws:') + '/editor?folder=pendulum', protocol, {
       origin,

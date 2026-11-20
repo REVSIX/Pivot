@@ -1,0 +1,13 @@
+name: pivot
+services:
+  simulate:
+    build:
+      context: .
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./artifacts:/runs
+    mem_limit: 512m
+    cpus: 1.0

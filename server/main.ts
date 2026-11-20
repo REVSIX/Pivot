@@ -25,7 +25,7 @@ workbench.server.on('error', (err) => {
   process.exit(1)
 })
 workbench.server.listen(port, '127.0.0.1', () =>
-  console.log('Hinge is ready at http://127.0.0.1:' + port),
+  console.log('Pivot is ready at http://127.0.0.1:' + port),
 )
 for (const signal of ['SIGTERM', 'SIGINT'] as const)
   process.once(signal, () => void workbench.close())

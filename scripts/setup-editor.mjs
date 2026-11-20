@@ -7,12 +7,12 @@ const nvim = nvimPath(),
   git = executable('git')
 if (!nvim || !git)
   throw new Error(
-    'Install Neovim and Git, or set HINGE_NVIM to an absolute executable path. See README.',
+    'Install Neovim and Git, or set PIVOT_NVIM to an absolute executable path. See README.',
   )
 function run(bin, args, cwd) {
   const result = spawnSync(bin, args, {
     cwd,
-    env: { ...editorEnv(), HINGE_INSTALL: '1' },
+    env: { ...editorEnv(), PIVOT_INSTALL: '1' },
     stdio: 'inherit',
     shell: false,
   })
@@ -78,7 +78,7 @@ run(
     '--headless',
     '-u',
     profile,
-    '+lua if not pcall(require,"lazyvim.config") or vim.fn.exists(":HingeFiles") ~= 2 then vim.cmd("cquit 1") end',
+    '+lua if not pcall(require,"lazyvim.config") or vim.fn.exists(":PivotFiles") ~= 2 then vim.cmd("cquit 1") end',
     '+qa',
   ],
   base,

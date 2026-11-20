@@ -1,0 +1,28 @@
+name: Bug report
+description: Report something in Pivot that does not work as expected.
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Pivot version and operating system
+      placeholder: Pivot v0.3.0 MSI, Windows 11 x64
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the project, model, or palette command if it matters. Use a small public example when possible.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Logs or screenshots
+      description: Include relevant diagnostics and versions of external tools. Remove credentials and private project data.

@@ -3,7 +3,7 @@ import path from 'node:path'
 import { existsSync, accessSync, constants } from 'node:fs'
 
 export const base = fileURLToPath(new URL('../', import.meta.url))
-export const editorHome = path.join(base, '.hinge', 'editor')
+export const editorHome = path.join(base, '.pivot', 'editor')
 export const profile = path.join(base, 'editor', 'init.lua')
 export function executable(name, override) {
   const suffix = process.platform === 'win32' ? '.exe' : ''
@@ -21,23 +21,23 @@ export function executable(name, override) {
   }
 }
 export function nvimPath() {
-  const portable = path.join(base, '.hinge/bin/nvim-win64/bin/nvim.exe')
-  return executable('nvim', process.env.HINGE_NVIM || (existsSync(portable) ? portable : undefined))
+  const portable = path.join(base, '.pivot/bin/nvim-win64/bin/nvim.exe')
+  return executable('nvim', process.env.PIVOT_NVIM || (existsSync(portable) ? portable : undefined))
 }
 export function pythonPath() {
   const venv = path.join(
     base,
     process.platform === 'win32' ? '.venv/Scripts/python.exe' : '.venv/bin/python',
   )
-  return executable('python', process.env.HINGE_PYTHON || venv)
+  return executable('python', process.env.PIVOT_PYTHON || (existsSync(venv) ? venv : undefined))
 }
 export function editorEnv() {
   const index = Number(process.env.GIT_CONFIG_COUNT || 0)
-  const localGit = path.join(base, '.hinge/bin/lazygit')
+  const localGit = path.join(base, '.pivot/bin/lazygit')
   return {
     ...process.env,
-    HINGE_EDITOR: editorHome,
-    NVIM_APPNAME: 'hinge',
+    PIVOT_EDITOR: editorHome,
+    NVIM_APPNAME: 'pivot',
     PATH: existsSync(path.join(localGit, 'lazygit.exe'))
       ? localGit + path.delimiter + process.env.PATH
       : process.env.PATH,

@@ -1,12 +1,24 @@
 import path from 'node:path'
+import { realpathSync, statSync } from 'node:fs'
 import { realpath, stat, opendir } from 'node:fs/promises'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-import { base, executable } from '../scripts/runtime.mjs'
+import { base } from '../scripts/runtime.mjs'
+import { gitState, excludedNames } from './git.ts'
 import type { Project } from '../client/src/model.ts'
-const exec = promisify(execFile)
-export const example = path.join(base, 'examples', 'pendulum')
-export const ignored = new Set(['node_modules', 'dist', '__pycache__', 'target', 'build'])
+
+const customDemo = process.env.PIVOT_DEMO_DIR
+if (customDemo && (!path.isAbsolute(customDemo) || !statSync(customDemo,{throwIfNoEntry:false})?.isDirectory()))
+  throw new Error('PIVOT_DEMO_DIR must identify an existing absolute directory.')
+export const example = customDemo ? realpathSync(customDemo) : path.join(base, 'examples', 'pendulum')
+const omittedDirs = new Set(['node_modules', 'dist', 'build', 'target', '__pycache__'])
+const dotfiles = new Set([
+  '.gitignore',
+  '.gitattributes',
+  '.github',
+  '.dockerignore',
+  '.editorconfig',
+  '.vscode',
+  '.pivot-tasks.json',
+])
 export class Fault extends Error {
   status: number
   constructor(message: string, status = 400) {
@@ -14,88 +26,78 @@ export class Fault extends Error {
     this.status = status
   }
 }
-export async function inside(root: string, rel: unknown, kind: 'directory' | 'file') {
+export function allowedName(name: string) {
+  return Boolean(
+    name &&
+    !omittedDirs.has(name.toLowerCase()) &&
+    (!name.startsWith('.') || dotfiles.has(name)) &&
+    !/[\x00-\x1f<>:"/\\|?*]/.test(name) &&
+    !/[ .]$/.test(name) &&
+    !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(name),
+  )
+}
+export function relativePath(value: unknown) {
   if (
-    typeof rel !== 'string' ||
-    rel.length > 1024 ||
-    /[\x00-\x1f:\\]/.test(rel) ||
-    path.isAbsolute(rel) ||
-    (rel !== '.' && rel.split('/').some((part) => !part || part.startsWith('.') || ignored.has(part)))
-  ) {
+    typeof value !== 'string' ||
+    value.length > 1024 ||
+    (value !== '.' && !value.split('/').every(allowedName))
+  )
     throw new Fault('Choose a relative path inside the workspace.')
-  }
-  const target = await realpath(path.join(root, rel)).catch(() => {
+  return value
+}
+export async function inside(root: string, rel: unknown, kind: 'directory' | 'file' | 'either') {
+  const target = await realpath(path.join(root, relativePath(rel))).catch(() => {
     throw new Fault('Path does not exist.', 404)
   })
   const diff = path.relative(root, target)
-  if (
-    diff.startsWith('..' + path.sep) ||
-    diff === '..' ||
-    path.isAbsolute(diff) ||
-    diff.split(path.sep).some((part) => part.startsWith('.') || ignored.has(part))
-  )
+  if (path.isAbsolute(diff) || (diff && !diff.split(path.sep).every(allowedName)))
     throw new Fault('Path is outside the workspace.', 403)
   const info = await stat(target)
-  if (!(kind === 'file' ? info.isFile() : info.isDirectory())) throw new Fault('Wrong path type.')
+  if (
+    kind === 'directory'
+      ? !info.isDirectory()
+      : kind === 'file'
+        ? !info.isFile()
+        : !info.isFile() && !info.isDirectory()
+  )
+    throw new Fault('Wrong path type.')
   return target
 }
-async function gitState(dir: string): Promise<Project['git']> {
-  const git = executable('git')
-  if (!git) return null
-  try {
-    const { stdout } = await exec(
-      git,
-      [
-        '--no-optional-locks',
-        '-c',
-        'core.fsmonitor=false',
-        '-c',
-        'core.untrackedCache=false',
-        '-C',
-        dir,
-        'status',
-        '--ignore-submodules=all',
-        '--porcelain=v1',
-        '--branch',
-        '-z',
-        '--untracked-files=normal',
-        '--no-renames',
-        '--',
-        '.',
-      ],
-      { cwd: base, timeout: 3000, maxBuffer: 1048576, windowsHide: true },
-    )
-    const [head, ...changes] = stdout.split('\0')
-    return {
-      branch: head.replace(/^## (?:No commits yet on |Initial commit on )?/, '').split('...')[0],
-      changed: changes.filter(Boolean).length,
-    }
-  } catch {
-    return null
+export async function tree(folderRoot: string, relative: string) {
+  const cwd = await inside(folderRoot, relative, 'directory')
+  const entries: { name: string; path: string; kind: 'file' | 'directory' }[] = []
+  let scanned = 0
+  for await (const ent of await opendir(cwd)) {
+    if (++scanned > 2048) break
+    if (!allowedName(ent.name) || (!ent.isFile() && !ent.isDirectory())) continue
+    entries.push({
+      name: ent.name,
+      path: relative === '.' ? ent.name : relative + '/' + ent.name,
+      kind: ent.isDirectory() ? 'directory' : 'file',
+    })
   }
+  const ignored = await excludedNames(
+    cwd,
+    entries.map((ent) => ent.name + (ent.kind === 'directory' ? '/' : '')),
+  )
+  const visible = entries
+    .filter((ent) => !ignored.has(ent.name))
+    .sort(
+      (a, b) => Number(a.kind === 'file') - Number(b.kind === 'file') || a.name.localeCompare(b.name),
+    )
+  return { entries: visible, truncated: scanned > 2048 }
 }
 export async function project(root: string, folder: string): Promise<Project> {
   const dir = await inside(root, folder, 'directory')
-  const files: string[] = [],
-    folders: string[] = []
-  let count = 0,
-    truncated = false
-  for await (const item of await opendir(dir)) {
-    if (++count > 1024) {
-      truncated = true
-      break
-    }
-    if (item.name.startsWith('.') || ignored.has(item.name)) continue
-    if (item.isDirectory()) folders.push(item.name)
-    if (item.isFile()) files.push(item.name)
-  }
+  const listing = await tree(dir, '.')
+  const git = await gitState(dir, false)
   return {
     folder,
     rootName: path.basename(root),
-    files: files.sort(),
-    folders: folders.sort(),
-    truncated,
-    git: await gitState(dir),
-    demo: dir === (await realpath(example)),
+    files: listing.entries.filter((e) => e.kind === 'file').map((e) => e.name),
+    folders: listing.entries.filter((e) => e.kind === 'directory').map((e) => e.name),
+    truncated: listing.truncated,
+    git: git.available ? { branch: git.branch, changed: git.changes.length } : null,
+    demo: dir === (await realpath(example).catch(() => null)),
   }
 }

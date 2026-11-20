@@ -1,4 +1,4 @@
-export type Frame = { t: number; q: number[]; v: number[]; p: number[][] }
+export type Frame = { t: number; q: number[]; v: number[]; p: number[][]; xyz?: number[][]; quat?: number[][]; actuatorForce?: number[]; ctrl?: number[] }
 export interface Capture {
   title: string
   engine: string
@@ -6,6 +6,8 @@ export interface Capture {
   integrator: string
   nodes: { name: string; parent: number }[]
   joints: { name: string; unit: string }[]
+  actuators?: {name:string; unit:string}[]
+  geoms?: {type:string; body:number; pos:number[]; quat:number[]; size:number[]}[]
   frames: Frame[]
 }
 export interface Project {

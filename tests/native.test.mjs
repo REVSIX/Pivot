@@ -12,7 +12,7 @@ import { base } from '../scripts/runtime.mjs'
 import { csv } from '../client/src/model.ts'
 
 test('MuJoCo HTTP run, concurrent request, CSV export and verified terminal conversion', async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), 'hinge-native-'))
+  const root = await mkdtemp(path.join(tmpdir(), 'pivot-native-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   await copyFile(path.join(base, 'examples/pendulum/pendulum.xml'), path.join(root, 'arm.xml'))
   const { server, close } = await createWorkbench({ root })
@@ -23,7 +23,7 @@ test('MuJoCo HTTP run, concurrent request, CSV export and verified terminal conv
   const { token } = await (await fetch(url + '/api/session')).json()
   const opts = {
     method: 'POST',
-    headers: { 'X-Hinge-Token': token, 'Content-Type': 'application/json' },
+    headers: { 'X-Pivot-Token': token, 'Content-Type': 'application/json' },
     body: JSON.stringify({ folder: '.', file: 'arm.xml' }),
   }
   const responses = await Promise.all([fetch(url + '/api/run', opts), fetch(url + '/api/run', opts)])
@@ -41,7 +41,7 @@ test('MuJoCo HTTP run, concurrent request, CSV export and verified terminal conv
   assert.equal(mcap.subarray(0, 8).toString('hex'), '894d434150300d0a')
 })
 test('authenticated editor saves a buffer in the selected folder', { timeout: 25000 }, async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), 'hinge-editor-'))
+  const root = await mkdtemp(path.join(tmpdir(), 'pivot-editor-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   await writeFile(path.join(root, 'notes.txt'), 'initial-line\n')
   const { server, close } = await createWorkbench({ root })
@@ -52,7 +52,7 @@ test('authenticated editor saves a buffer in the selected folder', { timeout: 25
   const { token } = await (await fetch(url + '/api/session')).json()
   const socket = new WebSocket(
     url.replace('http:', 'ws:') + '/editor?folder=.&file=notes.txt',
-    'hinge.' + token,
+    'pivot.' + token,
     { origin: url },
   )
   let sent = false

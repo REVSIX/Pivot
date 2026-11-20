@@ -1,0 +1,72 @@
+name: Windows release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Validate release tag
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        run: |
+          $expected = 'v' + (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_NAME -cne $expected) { throw "Expected release tag $expected" }
+      - run: npm ci
+      - run: npm test
+      - name: Build MSI
+        shell: pwsh
+        run: ./packaging/build.ps1 -OutputDirectory "$env:RUNNER_TEMP/artifacts"
+      - name: Install and exercise desktop
+        shell: pwsh
+        run: |
+          $msi = (Get-ChildItem "$env:RUNNER_TEMP/artifacts/*.msi").FullName
+          $p = Start-Process msiexec.exe -ArgumentList @('/i',('"' + $msi + '"'),'/quiet','/norestart') -Wait -PassThru -WindowStyle Hidden
+          if ($p.ExitCode -ne 0) { throw "MSI installation failed ($($p.ExitCode))" }
+          try {
+            node packaging/smoke.mjs "$env:LOCALAPPDATA/Programs/Pivot/Pivot.exe"
+            if ($LASTEXITCODE -ne 0) { throw 'Desktop smoke test failed' }
+          } finally {
+            $p = Start-Process msiexec.exe -ArgumentList @('/x',('"' + $msi + '"'),'/quiet','/norestart') -Wait -PassThru -WindowStyle Hidden
+            if ($p.ExitCode -ne 0) { throw "MSI uninstall failed ($($p.ExitCode))" }
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pivot-windows-x64
+          path: |
+            ${{ runner.temp }}/artifacts/*.msi
+            ${{ runner.temp }}/artifacts/*.sha256
+          if-no-files-found: error
+
+  draft:
+    needs: candidate
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pivot-windows-x64
+          path: artifacts
+      - name: Create release draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" artifacts/*.msi artifacts/*.sha256 \
+            --draft --verify-tag --repo "$GITHUB_REPOSITORY" --title "Pivot $RELEASE_TAG" --generate-notes

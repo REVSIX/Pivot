@@ -1,0 +1,2 @@
+#!/bin/sh
+exec "${PIVOT_PYTHON:-python3}" "$(dirname "$0")/../telem.py" "$@"

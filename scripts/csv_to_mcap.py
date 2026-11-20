@@ -13,9 +13,9 @@ try:
     from mcap.writer import Writer, CompressionType
     from mcap.reader import make_reader
 except ModuleNotFoundError as exc:
-    raise SystemExit("Install simulator/mcap-requirements.txt in the Hinge Python environment.") from exc
+    raise SystemExit("Install simulator/mcap-requirements.txt in the Pivot Python environment.") from exc
 
-TOPIC = "/hinge/telemetry"
+TOPIC = "/pivot/telemetry"
 
 
 def samples(path):
@@ -81,9 +81,9 @@ def convert(source, overwrite=False):
             writer = Writer(
                 out, compression=CompressionType.ZSTD, enable_data_crcs=True
             )
-            writer.start(library="hinge")
+            writer.start(library="pivot")
             schema_id = writer.register_schema(
-                "HingeTelemetry", "jsonschema", json.dumps(schema).encode()
+                "PivotTelemetry", "jsonschema", json.dumps(schema).encode()
             )
             channel = writer.register_channel(
                 TOPIC,

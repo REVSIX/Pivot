@@ -1,24 +1,8 @@
-const paths: Record<string, string> = {
-  brand:
-    '<path d="M3 17 10 7l8 11 5-7"/><circle cx="10" cy="7" r="2.6"/><circle cx="18" cy="18" r="2.6"/>',
-  folder: '<path d="M3 6h7l2 3h9v10H3z"/>',
-  chevron: '<path d="m8 10 4 4 4-4"/>',
-  command: '<path d="m4 6 6 6-6 6m9 0h7"/>',
-  code: '<path d="m7 7-5 5 5 5m10-10 5 5-5 5m-4-13-3 16"/>',
-  sim: '<path d="m12 2 9 5v10l-9 5-9-5V7zm0 10v10M3 7l9 5 9-5"/>',
-  wave: '<path d="M2 14h4l3-8 5 14 3-11 2 5h3"/>',
-  play: '<path d="m7 4 13 8-13 8z" fill="currentColor" stroke="none"/>',
-  pause: '<path d="M7 5v14m9-14v14" stroke-width="4"/>',
-  run: '<path d="M19 10a7 7 0 1 0 0 6m0-12v6h-6"/>',
-  arrow: '<path d="M4 12h15m-6-6 6 6-6 6"/>',
-  down: '<path d="M12 3v12m-5-5 5 5 5-5m-13 7v3h16v-3"/>',
-  spotify:
-    '<circle cx="12" cy="12" r="10" fill="currentColor" stroke="none"/><g stroke="#191a23" stroke-linecap="round"><path d="M6 9q6-3 12 1m-11 2q5-2 10 1m-9 2q4-1.5 8 1"/></g>',
-}
-export function icon(name: string) {
-  return (
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-    (paths[name] || '') +
-    '</svg>'
-  )
-}
+const definitions:Record<string,string>={
+ folder:'<path d="M2.5 7h7l2-2h3l2 3h5v11h-19z"/>',chevron:'<path d="m7.5 9 4.5 5 4.5-5"/>',branch:'<circle cx="6" cy="5" r="2.3"/><circle cx="18" cy="6" r="2.3"/><circle cx="6" cy="19" r="2.3"/><path d="M6 7v10m12-9c0 6-12 3-12 9"/>',
+ code:'<path d="m7 7-5 5 5 5m10-10 5 5-5 5m-4-13-3 16"/>',wave:'<path d="M2 13h5l3-9 4 16 3-10 2 3h3"/>',sim:'<path d="m12 2 9 5v10l-9 5-9-5V7zm0 10v10M3 7l9 5 9-5"/>',split:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M10 3v18m0-10h11"/>',
+ play:'<path d="m7 4 14 8-14 8z" fill="currentColor" stroke="none"/>',stop:'<rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor" stroke="none"/>',pause:'<path d="M8 5v14m8-14v14" stroke-width="4"/>',reset:'<path d="M20 10a8 8 0 1 0 0 6m0-12v6h-6"/>',settings:'<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke-width="2"/>',
+ search:'<circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/>',run:'<path d="m5 3 16 9-16 9z"/>',terminal:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m6 8 4 4-4 4m7 0h4"/>',more:'<circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="20" cy="12" r="1" fill="currentColor"/>',maximize:'<path d="M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6"/>',variables:'<path d="m8 5-4 7 4 7m8-14 4 7-4 7m-3-14-2 14"/>',logs:'<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 8h8m-8 4h8m-8 4h6"/>',filter:'<path d="M3 6h18M5 12h14m-12 6h10"/>',down:'<path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/>',plus:'<path d="M12 5v14M5 12h14"/>',minus:'<path d="M5 12h14"/>',square:'<rect x="5" y="5" width="14" height="14" rx="1"/>',close:'<path d="m5 5 14 14M19 5 5 19"/>',target:'<circle cx="12" cy="12" r="7"/><path d="M12 1v5m0 12v5M1 12h5m12 0h5"/>',step:'<path d="m4 5 11 7-11 7z" fill="currentColor"/><path d="M19 5v14"/>',back:'<path d="m20 5-11 7 11 7z" fill="currentColor"/><path d="M5 5v14"/>',
+ spotify:'<circle cx="12" cy="12" r="10" fill="currentColor" stroke="none"/><g stroke="var(--panel)"><path d="M6 9q6-3 12 1m-11 2q5-2 10 1m-9 2q4-1.5 8 1"/></g>',file:'<path d="M5 3h9l5 5v13H5zM14 3v6h5"/>',python:'<path d="M5 10V7h6V4h6v6h-5v4H6a3 3 0 0 1-1-4z" fill="#87b6e5" stroke="none"/><path d="M19 14v3h-6v3H7v-6h5v-4h6a3 3 0 0 1 1 4z" fill="#efc86b" stroke="none"/>',layers:'<path d="m12 3 9 5-9 5-9-5zm-9 10 9 5 9-5m-18 5 9 5 9-5"/>',git:'<path d="m12 2 10 10-10 10L2 12z"/><path d="m8 6 9 9m-5-5v7"/>',arrow:'<path d="m9 6 6 6-6 6"/>'}
+export function icon(key:string){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(definitions[key]||definitions.file)+'</svg>'}
+export function fileIcon(file:string){return file.endsWith('.py')?'python':/\.(xml|ts|js|lua|json)$/.test(file)?'code':'file'}

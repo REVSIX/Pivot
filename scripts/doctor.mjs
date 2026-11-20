@@ -27,7 +27,7 @@ console.log(
 console.log(
   'lazygit    ',
   version(
-    executable('lazygit') || executable('lazygit', path.join(base, '.hinge/bin/lazygit/lazygit.exe')),
+    executable('lazygit') || executable('lazygit', path.join(base, '.pivot/bin/lazygit/lazygit.exe')),
     ['--version'],
   ),
 )

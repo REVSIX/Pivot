@@ -1,0 +1,16 @@
+name: Feature proposal
+description: Propose an improvement to a Pivot workflow.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the workflow and where you get stuck.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What would you like Pivot to do?
+    validations:
+      required: true
