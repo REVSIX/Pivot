@@ -1,5 +1,10 @@
 # Pivot
 
+
+<img width="1598" height="854" alt="Recording 2026-11-20 003855" src="https://github.com/user-attachments/assets/24f30fac-d770-479b-95a8-ca1d27fcb160" />
+
+
+
 Pivot is a local-first robotics IDE for editing a controller in LazyVim, running it in a terminal, and watching your robot and its telemetry in MuJoCo. Open a project folder to keep its code, simulations, terminals, and Git changes in one workspace.
 
 [Download for Windows x64](https://github.com/REVSIX/Pivot/releases/latest) · [Example projects](https://github.com/REVSIX/pivot-pendulum-pid) · [Contribute](CONTRIBUTING.md)
