@@ -38,15 +38,15 @@ jobs:
             ${{ runner.temp }}/artifacts/*.msi
             ${{ runner.temp }}/artifacts/*.sha256
           if-no-files-found: error
-      - name: Install and exercise desktop
+      - name: Install and verify bundled runtime
         shell: pwsh
         run: |
           $msi = (Get-ChildItem "$env:RUNNER_TEMP/artifacts/*.msi").FullName
           $p = Start-Process msiexec.exe -ArgumentList @('/i',('"' + $msi + '"'),'/quiet','/norestart') -Wait -PassThru -WindowStyle Hidden
           if ($p.ExitCode -ne 0) { throw "MSI installation failed ($($p.ExitCode))" }
           try {
-            node packaging/smoke.mjs "$env:LOCALAPPDATA/Programs/Pivot/Pivot.exe"
-            if ($LASTEXITCODE -ne 0) { throw 'Desktop smoke test failed' }
+            node packaging/smoke-service.mjs "$env:LOCALAPPDATA/Programs/Pivot"
+            if ($LASTEXITCODE -ne 0) { throw 'Installed runtime smoke test failed' }
           } finally {
             $p = Start-Process msiexec.exe -ArgumentList @('/x',('"' + $msi + '"'),'/quiet','/norestart') -Wait -PassThru -WindowStyle Hidden
             if ($p.ExitCode -ne 0) { throw "MSI uninstall failed ($($p.ExitCode))" }
