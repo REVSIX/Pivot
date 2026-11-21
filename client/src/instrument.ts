@@ -6,14 +6,18 @@ import {icon} from './icons.ts'
 import {builtInModel,builtInModels} from '../../shared/models.ts'
 interface Update {offset:number;frames:Frame[];cursor:number;state:string;speed:number;error?:string}
 export class Instrument{
- project?:Project;file='';capture?:Capture;index=0;liveId='';cursor=-1;offset=0;state='Reference';camera=createCamera(readPref('projection','3d'));trace=readPref('trajectory',false)
+ project?:Project;file='';capture?:Capture;index=0;liveId='';cursor=-1;offset=0;state='Reference';camera=createCamera(readPref('projection','3d'));trace=readPref('trajectory',false);showOrigins=readPref('bodyOrigins',false)
  debug=new DebugView(i=>run(()=>this.seek(i)));private generation=0;private timer=0;private replayTimer=0;private replaying=false;private polling=false;private locked=false;private following=true;private external=false
  constructor(){bindCamera(el<HTMLCanvasElement>('scene'),this.camera,()=>this.paint());new ResizeObserver(()=>this.paint()).observe(el('scene'))
  for(const b of document.querySelectorAll<HTMLButtonElement>('[data-projection]'))b.onclick=()=>{this.camera.mode=b.dataset.projection as '2d'|'3d';pref('projection',this.camera.mode);this.paint()}
  el('pick-model').onclick=()=>this.models()
  el('select-model').onclick=()=>this.models()
  el('center-camera').onclick=()=>{Object.assign(this.camera,createCamera(this.camera.mode));this.paint()}
- el('sim-menu').onclick=()=>choices('Simulation',[{label:'Toggle trajectory',do:()=>{this.trace=!this.trace;pref('trajectory',this.trace);this.paint()}},{label:'Export CSV',do:()=>this.exportCsv()}])
+ el('sim-menu').onclick=()=>choices('Simulation',[
+  {label:this.showOrigins?'Hide body origins':'Show body origins',do:()=>{this.showOrigins=!this.showOrigins;pref('bodyOrigins',this.showOrigins);this.paint()}},
+  {label:'Toggle trajectory',do:()=>{this.trace=!this.trace;pref('trajectory',this.trace);this.paint()}},
+  {label:'Export CSV',do:()=>this.exportCsv()},
+ ])
  el('play').onclick=()=>run(()=>this.transport())
  el('sim-reset').onclick=()=>run(()=>this.act('reset'))
  el('step').onclick=()=>run(()=>this.seek(this.index+1));el('back').onclick=()=>run(()=>this.seek(this.index-1));el('rewind').onclick=()=>run(()=>this.seek(0))
@@ -113,7 +117,7 @@ export class Instrument{
  const add=(id:string,label:string,value:string,color?:string)=>{const row=node('div','','field'),left=node('span',label);if(color){const s=node('i','','swatch');s.style.background=color;left.prepend(s)}row.append(left,node('output',value));el(id).append(row)}
  const c=this.capture;if(!c)return;c.joints.forEach((j,i)=>add('joints',j.name,'',tint(i)));if(c.actuators?.length){el('actuators').append(node('h3','Actuators'));c.actuators.forEach(a=>add('actuators',a.name,'—'))}add('solver','Δt',(c.dt*1000).toFixed(1)+' ms');add('solver','Hz',String(Math.round(1/c.dt)));add('solver','method',c.integrator)}
  paint(){const c=this.capture,f=c?.frames[this.index],canvas=el<HTMLCanvasElement>('scene');for(const b of document.querySelectorAll<HTMLElement>('[data-projection]'))b.setAttribute('aria-pressed',String(b.dataset.projection===this.camera.mode))
- if(c&&f&&canvas.clientWidth){scene(canvas,c,this.index,this.trace,this.camera);el('joints').querySelectorAll('output').forEach((o,i)=>o.textContent=f.q[i].toFixed(3)+' '+c.joints[i].unit);el('actuators').querySelectorAll('output').forEach((o,i)=>o.textContent=(f.actuatorForce?.[i]?.toFixed(2)??'—')+' '+(c.actuators?.[i].unit||''))}
+ if(c&&f&&canvas.clientWidth){scene(canvas,c,this.index,this.trace,this.camera,this.showOrigins);el('joints').querySelectorAll('output').forEach((o,i)=>o.textContent=f.q[i].toFixed(3)+' '+c.joints[i].unit);el('actuators').querySelectorAll('output').forEach((o,i)=>o.textContent=(f.actuatorForce?.[i]?.toFixed(2)??'—')+' '+(c.actuators?.[i].unit||''))}
  if(!f&&canvas.width){const g=canvas.getContext('2d');g?.clearRect(0,0,canvas.width,canvas.height)}
  el('scene-empty').hidden=!!(this.file||c);el('scene-note').hidden=!(this.file||c)
  el('scene-note').textContent=this.liveId?'MuJoCo '+(c?.engine||''):c?'Reference capture · MuJoCo '+c.engine:this.file?'Run model to initialize MuJoCo':'Select an MJCF model'

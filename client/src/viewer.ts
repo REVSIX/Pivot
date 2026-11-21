@@ -23,7 +23,7 @@ const add=(a:V,b:V)=>a.map((v,i)=>v+b[i])
 const mul=(a:V,k:number)=>a.map(v=>v*k)
 const cross=(a:V,b:V)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]
 function rot(q:V,v:V){const u=q.slice(1),uv=cross(u,v);return add(v,mul(add(mul(uv,q[0]),cross(u,uv)),2))}
-type Mesh = {body:number; rotationBody?:number; tintBody?:number; faces:V[][]; shade:number}
+type Mesh = {body:number; rotationBody?:number; tintBody?:number; originMarker?:boolean; faces:V[][]; shade:number}
 function rings(profiles:number[][],sides=14){
   const verts=profiles.map(([r,z])=>Array.from({length:sides},(_,i)=>[r*Math.cos(i*Math.PI*2/sides),r*Math.sin(i*Math.PI*2/sides),z]))
   const faces:V[][]=[]
@@ -65,7 +65,7 @@ function shape(run:Capture):Shape {
     const rotationBody=i<(f.quat?.length??0)?i:node.parent
     for(const [width,height,tone] of [[1,.74,.85],[.76,.81,.38],[.43,.85,1.28]]){
       const b=width*bearing,z=height*bearing
-      meshes.push({body:i,rotationBody,tintBody:Math.max(0,node.parent),shade:tone,faces:rings([[0,-z],[b*.91,-z],[b,-z*.92],[b,z*.92],[b*.91,z],[0,z]],20)
+      meshes.push({body:i,rotationBody,tintBody:Math.max(0,node.parent),originMarker:true,shade:tone,faces:rings([[0,-z],[b*.91,-z],[b,-z*.92],[b,z*.92],[b*.91,z],[0,z]],20)
         .map(face=>face.map(v=>rot(q,v)))})
     }
   }
@@ -81,7 +81,7 @@ function rgb(hex:string){
   return hex.startsWith('#')&&hex.length===7?[n>>16,(n>>8)&255,n&255]:[160,155,210]
 }
 const shade=(c:V,f:number)=>'rgb('+c.map(v=>Math.round(Math.min(255,Math.max(0,v*f)))).join(',')+')'
-export function drawView(g:CanvasRenderingContext2D,w:number,h:number,run:Capture,index:number,cam:Camera,trace:boolean){
+export function drawView(g:CanvasRenderingContext2D,w:number,h:number,run:Capture,index:number,cam:Camera,trace:boolean,showOrigins=false){
   const {radius:r,center,floor,meshes}=shape(run), f=run.frames[index]
   const pos=f.xyz??f.p.map(([x,z])=>[x,0,z])
   const yaw=cam.mode==='2d'?0:cam.yaw,pitch=cam.mode==='2d'?0:cam.pitch
@@ -118,6 +118,7 @@ export function drawView(g:CanvasRenderingContext2D,w:number,h:number,run:Captur
   }
   const faces:{screen:V[];depth:number;fill:string}[]=[]
   for(const mesh of meshes){
+    if(mesh.originMarker&&!showOrigins)continue
     const local=mesh.body>=0,origin=local?pos[mesh.body]:[0,0,0],q=local?f.quat?.[mesh.rotationBody??mesh.body]:undefined
     if(!origin)continue
     const ink=palette[Math.max(0,mesh.tintBody??mesh.body)%2]

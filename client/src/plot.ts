@@ -17,9 +17,9 @@ function surface(canvas: HTMLCanvasElement) {
   g.clearRect(0, 0, w, h)
   return { g, w, h }
 }
-export function scene(canvas:HTMLCanvasElement,run:Capture,index:number,trace:boolean,camera:Camera=createCamera()) {
+export function scene(canvas:HTMLCanvasElement,run:Capture,index:number,trace:boolean,camera:Camera=createCamera(),showOrigins=false) {
   const {g,w,h}=surface(canvas)
-  if(w && h && run.frames[index])drawView(g,w,h,run,index,camera,trace)
+  if(w && h && run.frames[index])drawView(g,w,h,run,index,camera,trace,showOrigins)
 }
 export function graph(
   canvas: HTMLCanvasElement,
