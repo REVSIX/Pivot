@@ -122,6 +122,8 @@ export function liveSimulationRoutes(root:string,host:()=>string,token:string){
     const folder=req.body?.folder;await inside(root,folder,'directory')
     const capture=req.body?.capture as Capture
     if(!capture||!Array.isArray(capture.frames)||!Array.isArray(capture.nodes)||!Array.isArray(capture.geoms))throw new Fault('Invalid Python simulation state.')
+    const filename=(value:unknown)=>typeof value==='string'?value.split(/[\\/]/).at(-1)?.slice(0,255):undefined
+    capture.source={script:filename(req.body?.script),model:filename(req.body?.model)}
     finish();external={id:randomUUID(),folder,capture,offset:0,paused:false,reset:false,stop:false,last:Date.now()}
     res.json({id:external.id})
   })
@@ -155,7 +157,10 @@ export function liveSimulationRoutes(root:string,host:()=>string,token:string){
     const stop=()=>worker.stop()
     previews.add(worker)
     res.once('close',stop)
-    try{res.json(await worker.request<Capture>({xml,preview:true}))}
+    try{
+      const capture=await worker.request<Capture>({xml,preview:true})
+      res.json({...capture,source:{model:path.basename(model)}})
+    }
     finally{res.off('close',stop);previews.delete(worker);stop()}
   })
   router.post('/sim/open',async(req,res)=>{
@@ -174,6 +179,7 @@ export function liveSimulationRoutes(root:string,host:()=>string,token:string){
         const env=entry?{...telemetryEnv(folder,host(),token),PIVOT_MODEL_PATH:model,PIVOT_SIMULATOR_DIR:path.join(base,'simulator')}:undefined
         starting=new NativeModel(python,entry,env)
         const capture=await starting.request<Capture>({xml:entry?undefined:await readFile(model,'utf8')},entry?300000:15000)
+        capture.source={model:path.basename(model),...(entry?{script:path.basename(entry)}:{})}
         if(closed)throw new Fault('Workbench closed.',503)
         active=new LiveSession(starting,capture,model)
       }catch(err){starting?.stop();throw err}finally{opening=false;starting=undefined}

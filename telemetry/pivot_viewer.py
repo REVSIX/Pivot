@@ -30,8 +30,10 @@ class PivotViewer:
             return json.load(res)
 
     def __enter__(self):
+        script = sys.argv[0]
         self.id = self.request("sim/external", {"folder": self.folder,
-            "model": self.model_path,
+            "model": os.path.basename(self.model_path),
+            "script": os.path.basename(script) if os.path.isfile(script) else None,
             "capture": {**metadata(self.model, os.path.basename(self.model_path), mujoco),
                         "frames": [sample(self.model, self.data)]}})["id"]
         return self

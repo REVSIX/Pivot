@@ -1,4 +1,4 @@
-import {csv,type Capture,type Frame,type Project} from './model.ts'
+import {clipCapture,csv,mediaFilename,type Capture,type Frame,type Project} from './model.ts'
 import {bindCamera,createCamera,scene,tint} from './plot.ts'
 import {DebugView} from './debug.ts'
 import {api,choices,download,el,message,node,pref,readPref,report,run,type Action} from './ui.ts'
@@ -6,7 +6,7 @@ import {icon} from './icons.ts'
 import {builtInModel,builtInModels} from '../../shared/models.ts'
 import {exportClip,exportStill,type ClipFormat,type MediaView} from './simulation-media.ts'
 interface Update {offset:number;frames:Frame[];cursor:number;state:string;speed:number;error?:string}
-type Clip={format:ClipFormat;start:number;end:number}
+type Clip={format:ClipFormat;capture:Capture;start:number;end:number}
 export class Instrument{
  project?:Project;file='';capture?:Capture;index=0;liveId='';cursor=-1;offset=0;state='Reference';camera=createCamera(readPref('projection','3d'));trace=readPref('trajectory',false);showOrigins=readPref('bodyOrigins',false)
  debug=new DebugView(i=>run(()=>this.seek(i)));private generation=0;private timer=0;private replayTimer=0;private replaying=false;private polling=false;private locked=false;private following=true;private external=false
@@ -92,7 +92,7 @@ export class Instrument{
   this.paint()
   let last=performance.now()
   this.replayTimer=window.setInterval(()=>{
-   const frames=this.capture?.frames,clip=this.clip
+   const clip=this.clip,frames=(clip?.capture??this.capture)?.frames
    const wraps=!!clip&&this.index>=clip.end
    const nextIndex=wraps?clip.start:this.index+1
    if(!frames?.[nextIndex]){this.stopReplay();this.paint();return}
@@ -182,7 +182,7 @@ export class Instrument{
  info(){el('model-name').textContent=this.capture?.title||builtInModel(this.file)?.label||this.file||'No model';el('joints').replaceChildren();el('actuators').replaceChildren();el('solver').replaceChildren()
  const add=(id:string,label:string,value:string,color?:string)=>{const row=node('div','','field'),left=node('span',label);if(color){const s=node('i','','swatch');s.style.background=color;left.prepend(s)}row.append(left,node('output',value));el(id).append(row)}
  const c=this.capture;if(!c)return;c.joints.forEach((j,i)=>add('joints',j.name,'',tint(i)));if(c.actuators?.length){el('actuators').append(node('h3','Actuators'));c.actuators.forEach(a=>add('actuators',a.name,'—'))}add('solver','Δt',(c.dt*1000).toFixed(1)+' ms');add('solver','Hz',String(Math.round(1/c.dt)));add('solver','method',c.integrator)}
- paint(){const c=this.capture,f=c?.frames[this.index],canvas=el<HTMLCanvasElement>('scene');for(const b of document.querySelectorAll<HTMLElement>('[data-projection]'))b.setAttribute('aria-pressed',String(b.dataset.projection===this.camera.mode))
+ paint(){const c=this.clip?.capture??this.capture,f=c?.frames[this.index],canvas=el<HTMLCanvasElement>('scene');for(const b of document.querySelectorAll<HTMLElement>('[data-projection]'))b.setAttribute('aria-pressed',String(b.dataset.projection===this.camera.mode))
  const preview=this.state==='Preview'
  if(c&&f&&canvas.clientWidth){scene(canvas,c,this.index,this.trace&&!preview,this.camera,this.showOrigins);if(!preview){el('joints').querySelectorAll('output').forEach((o,i)=>o.textContent=f.q[i].toFixed(3)+' '+c.joints[i].unit);el('actuators').querySelectorAll('output').forEach((o,i)=>o.textContent=(f.actuatorForce?.[i]?.toFixed(2)??'—')+' '+(c.actuators?.[i].unit||''))}}
  if(!f&&canvas.width){const g=canvas.getContext('2d');g?.clearRect(0,0,canvas.width,canvas.height)}
@@ -190,7 +190,7 @@ export class Instrument{
  el('scene-note').textContent=this.liveId?'MuJoCo '+(c?.engine||''):preview?'Model preview':c?'Reference capture · MuJoCo '+c.engine:this.file?this.state:'Select an MJCF model'
  el('time').textContent=f&&!preview?f.t.toFixed(3)+' s':'—';const slider=el<HTMLInputElement>('timeline');slider.max=String(Math.max(0,(c?.frames.length||1)-1));slider.value=String(this.index);slider.style.setProperty('--progress',(this.index/Math.max(1,+slider.max))*100+'%')
  el('state').textContent='Simulation · '+this.state;el('capture-label').textContent=c&&!preview?c.frames.length+' samples':'Local workspace'
- this.paintTransport();this.debug.update(preview?undefined:c,this.index)}
+ this.paintTransport();this.debug.update(preview?undefined:this.capture,this.index)}
  private paintTransport(){
   const play=el<HTMLButtonElement>('play'),playing=this.state==='Running'||this.replaying
   const pressed=String(playing)
@@ -218,16 +218,16 @@ export class Instrument{
   ])
  }
  private mediaView():MediaView{
-  if(!this.capture?.frames[this.index])throw new Error('Open a model or recording first.')
+  const capture=this.clip?.capture??this.capture
+  if(!capture?.frames[this.index])throw new Error('Open a model or recording first.')
   const canvas=el<HTMLCanvasElement>('scene')
-  return {capture:{...this.capture,frames:this.capture.frames.slice()},camera:{...this.camera},
+  return {capture:{...capture,frames:capture.frames.slice()},camera:{...this.camera},
    width:canvas.clientWidth,height:canvas.clientHeight,trace:this.trace&&this.state!=='Preview',showOrigins:this.showOrigins}
  }
- private mediaName(extension:string){
-  return (this.file.split('/').at(-1)?.replace(/\.xml$/i,'')||'simulation')+'.'+extension
- }
  private async saveStill(){
-  download(await exportStill(this.mediaView(),this.index),this.mediaName('jpg'))
+  const view=this.mediaView()
+  const name=mediaFilename(view.capture,this.file,'jpg')
+  download(await exportStill(view,this.index),name)
  }
  private async beginClip(format:ClipFormat){
   if(this.locked||this.exportingClip)return
@@ -236,9 +236,9 @@ export class Instrument{
   }
   const generation=this.generation
   await this.stop()
-  if(generation!==this.generation||!this.capture||this.state==='Running')return
+  if(generation!==this.generation||!this.capture||this.capture.frames.length<2||this.state==='Running')return
   this.following=false
-  this.clip={format,start:0,end:this.capture.frames.length-1}
+  this.clip={format,capture:clipCapture(this.capture),start:0,end:this.capture.frames.length-1}
   this.index=this.clip.start
   this.paint()
  }
@@ -255,9 +255,10 @@ export class Instrument{
   this.clip=undefined;this.stopReplay();this.paint()
  }
  private paintClip(){
-  const clip=this.clip,frames=this.capture?.frames
+  const clip=this.clip
   el('clip-handles').hidden=el('clip-actions').hidden=!clip
-  if(!clip||!frames)return
+  if(!clip)return
+  const frames=clip.capture.frames
   const time=(index:number)=>frames[index].t.toFixed(3)+' s'
   el('clip-times').textContent=time(clip.start)+' – '+time(clip.end)
   for(const edge of ['start','end'] as const){
@@ -279,7 +280,7 @@ export class Instrument{
   confirm.textContent='Exporting…'
   this.paint()
   try{
-   const name=this.mediaName(clip.format)
+   const name=mediaFilename(clip.capture,this.file,clip.format)
    const blob=await exportClip(this.mediaView(),clip.format,clip.start,clip.end,progress=>{
     confirm.textContent='Exporting '+Math.round(progress*100)+'%'
    })
