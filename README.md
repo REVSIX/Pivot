@@ -39,7 +39,7 @@ Press **Ctrl+Shift+P** to open the command palette. Type to filter, use **↑/�
 | Switch to the terminal | **Open existing terminal** or **New terminal**. Each terminal keeps its own state and history. |
 | Run the active saved buffer | **Run current file**. Python, JavaScript, shell, and PowerShell output appear in the integrated terminal. **Stop terminal (Ctrl+C)** interrupts its foreground job. |
 | Review a patch | **Show source control sidebar**. Select a changed file to compare both versions. Stage files, commit, or find branch and remote commands from the palette. |
-| Run a simulation | **Select MJCF model** and **Run simulation**. Pause, step, and reset affect the simulation session. |
+| Preview or run a model | **Select MJCF model** to inspect its initial pose. **Run simulation** starts physics and playback. Pause, step, and reset affect the simulation session. |
 | Inspect body origins | **Simulation options → Show body origins** adds bearing-shaped markers. The default view shows the model geometry without those overlays. |
 | Plot or export data | **Select debug channels**, **Export CSV**, and **Export telemetry as MCAP**. CSV can export a simulation capture or SDK telemetry. MCAP exports SDK telemetry. |
 | Change the look | Type **Theme**, then press **Enter**. Browse to preview and press **Enter** to apply. Use **Panel translucency (%)** and **Workspace background** to adjust the layout’s appearance. |

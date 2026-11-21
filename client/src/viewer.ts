@@ -52,12 +52,15 @@ const shapes=new WeakMap<Capture,Shape>()
 function shape(run:Capture):Shape {
   let cached=shapes.get(run)
   if(cached)return cached
-  const f=run.frames[0],points=f.xyz??f.p.map(([x,z])=>[x,0,z])
-  const mins=[0,1,2].map(i=>Math.min(...points.map(v=>v[i]))),maxs=[0,1,2].map(i=>Math.max(...points.map(v=>v[i])))
-  const radius=Math.max(.25,Math.hypot(...sub(maxs,mins))*.55)
+  const f=run.frames[0]
   const meshes:Mesh[]=(run.geoms??[]).map(geom=>({
     body:geom.body,shade:1,faces:primitive(geom.type,geom.size).map(face=>face.map(v=>add(rot(geom.quat,v),geom.pos)))
   }))
+  const points=f.xyz??f.p.map(([x,z])=>[x,0,z])
+  const worldPoints=points.length?points:meshes.flatMap(mesh=>mesh.faces.flat())
+  const bounds=worldPoints.length?worldPoints:[[0,0,0]]
+  const mins=[0,1,2].map(i=>Math.min(...bounds.map(v=>v[i]))),maxs=[0,1,2].map(i=>Math.max(...bounds.map(v=>v[i])))
+  const radius=Math.max(.25,Math.hypot(...sub(maxs,mins))*.55)
   // Bearing faces identify the actual body origins. Native geoms retain their MJCF dimensions.
   const bearing=Math.max(radius*.093,.015)
   for(const [i,node] of run.nodes.entries()){

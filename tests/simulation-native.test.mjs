@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { once } from 'node:events'
-import { mkdtemp,readFile,rm } from 'node:fs/promises'
+import { mkdtemp,readFile,rm,writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -12,8 +12,8 @@ import { liveSimulationRoutes } from '../server/live-simulation.ts'
 import { telemetryEnv,telemetryRoutes } from '../server/telemetry.ts'
 
 const exec=promisify(execFile)
-async function service(t) {
-  const token='native-test-token',app=express(),live=liveSimulationRoutes(path.join(base,'examples'))
+async function service(t,root=path.join(base,'examples')) {
+  const token='native-test-token',app=express(),live=liveSimulationRoutes(root,()=>host,token)
   app.use((req,res,next)=>req.get('X-Pivot-Token')===token?next():res.status(403).end())
   app.use('/api',express.json({limit:'64kb'}),live.router,telemetryRoutes())
   const server=app.listen(0,'127.0.0.1')
@@ -28,6 +28,19 @@ async function service(t) {
   }
   return {call,env:{...process.env,...telemetryEnv('pendulum',host,token)}}
 }
+test('model preview reads the initial pose without executing a project controller',async t=>{
+  const root=await mkdtemp(path.join(tmpdir(),'pivot-preview-test-'))
+  t.after(()=>rm(root,{recursive:true,force:true}))
+  await writeFile(path.join(root,'terrain.xml'),'<mujoco><worldbody><geom type="box" size="1 1 .1"/></worldbody></mujoco>')
+  await writeFile(path.join(root,'train.py'),'# --pivot-live\nraise RuntimeError("controller executed")\n')
+  const {call}=await service(t,root)
+  const preview=await call('sim/preview',{folder:'.',file:'terrain.xml'})
+  assert.equal(preview.frames.length,1)
+  assert.equal(preview.frames[0].t,0)
+  assert.equal(preview.joints.length,0)
+  assert.equal(preview.geoms.length,1)
+  await assert.rejects(call('sim/open',{folder:'.',file:'terrain.xml'}),/controller executed/)
+})
 test('live MuJoCo opens, steps one dt, advances continuously, pauses, resets and closes',async t=>{
   const {call}=await service(t)
   const opened=await call('sim/open',{folder:'pendulum',file:'pendulum.xml'})

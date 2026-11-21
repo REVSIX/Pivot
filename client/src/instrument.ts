@@ -8,6 +8,7 @@ interface Update {offset:number;frames:Frame[];cursor:number;state:string;speed:
 export class Instrument{
  project?:Project;file='';capture?:Capture;index=0;liveId='';cursor=-1;offset=0;state='Reference';camera=createCamera(readPref('projection','3d'));trace=readPref('trajectory',false);showOrigins=readPref('bodyOrigins',false)
  debug=new DebugView(i=>run(()=>this.seek(i)));private generation=0;private timer=0;private replayTimer=0;private replaying=false;private polling=false;private locked=false;private following=true;private external=false
+ private previewRequest?:AbortController
  constructor(){bindCamera(el<HTMLCanvasElement>('scene'),this.camera,()=>this.paint());new ResizeObserver(()=>this.paint()).observe(el('scene'))
  for(const b of document.querySelectorAll<HTMLButtonElement>('[data-projection]'))b.onclick=()=>{this.camera.mode=b.dataset.projection as '2d'|'3d';pref('projection',this.camera.mode);this.paint()}
  el('pick-model').onclick=()=>this.models()
@@ -28,16 +29,29 @@ export class Instrument{
  window.setInterval(()=>void this.attachExternal(),500)
  }
  sessionToken=''
- async setProject(p:Project){await this.release();this.project=p;this.file=readPref('model.'+p.folder,p.demo?'pendulum.xml':'');this.debug.setProject(p.folder);this.capture=undefined;this.index=0;this.state='Ready'
- if(this.file&&!builtInModel(this.file)&&!p.files.includes(this.file)){try{await api('file?'+new URLSearchParams({folder:p.folder,path:this.file}))}catch{this.file=''}}
- if(p.demo&&this.file==='pendulum.xml'){const result=await fetch('/pendulum.capture.json');if(result.ok){this.capture=await result.json();this.state='Reference'}}this.info();this.paint()}
- async release(){this.generation++;clearInterval(this.timer);this.stopReplay();const id=this.liveId;this.liveId='';this.cursor=-1;this.offset=0;this.following=true;this.external=false;if(id)await api('sim/'+id+'/action',{action:'close'}).catch(()=>{})}
+ async setProject(p:Project){
+  const generation=await this.release()
+  if(generation!==this.generation)return
+  this.project=p;this.file=readPref('model.'+p.folder,p.demo?'pendulum.xml':'');this.debug.setProject(p.folder);this.capture=undefined;this.index=0;this.state='Ready'
+  if(p.demo&&this.file==='pendulum.xml'){
+   const result=await fetch('/pendulum.capture.json')
+   if(result.ok){
+    const capture:Capture=await result.json()
+    if(generation!==this.generation)return
+    this.capture=capture;this.state='Reference'
+   }
+  }
+  if(generation!==this.generation)return
+  this.info();this.paint()
+  if(this.file&&!this.capture)void this.loadPreview(p,this.file,generation)
+ }
+ async release(){const generation=++this.generation;this.previewRequest?.abort();this.previewRequest=undefined;clearInterval(this.timer);this.stopReplay();const id=this.liveId;this.liveId='';this.cursor=-1;this.offset=0;this.following=true;this.external=false;if(id)await api('sim/'+id+'/action',{action:'close'}).catch(()=>{});return generation}
  private async attachExternal(){
-  if(!this.project||!this.sessionToken||this.liveId||this.locked)return
+  if(!this.project||!this.sessionToken||this.liveId||this.locked||this.previewRequest)return
   const generation=this.generation
   try{
    const data=await api<{id?:string;capture?:Capture;cursor:number;offset:number;state:string}>('sim/active?folder='+encodeURIComponent(this.project.folder))
-   if(!data.id||!data.capture||this.liveId||this.locked||generation!==this.generation)return
+   if(!data.id||!data.capture||this.liveId||this.locked||this.previewRequest||generation!==this.generation)return
    this.stopReplay();this.external=true;this.liveId=data.id;this.capture=data.capture;this.cursor=data.cursor;this.offset=data.offset;this.index=Math.max(0,data.capture.frames.length-1);this.following=true;this.state=data.state==='paused'?'Paused':'Running';this.info();this.paint();this.pollLoop()
   }catch{}
  }
@@ -64,7 +78,27 @@ export class Instrument{
   if(!this.project||this.file!==from&&!this.file.startsWith(from+'/'))return
   this.file=to+this.file.slice(from.length);pref('model.'+this.project.folder,this.file);this.info();this.paint()
  }
- async model(file:string){if(!this.project)return;await this.release();this.file=file;pref('model.'+this.project.folder,file);this.capture=undefined;this.index=0;this.state='Ready';this.info();this.paint();message('Selected '+(builtInModel(file)?.label||file))}
+ async model(file:string,start=false){
+  const project=this.project
+  if(!project)return
+  const generation=await this.release()
+  if(generation!==this.generation)return
+  this.file=file;pref('model.'+project.folder,file);this.capture=undefined;this.index=0;this.state='Ready';this.info();this.paint()
+  if(start)await this.act('play')
+  else await this.loadPreview(project,file,generation)
+ }
+ private async loadPreview(project:Project,file:string,generation:number){
+  const request=this.previewRequest=new AbortController()
+  this.state='Loading preview';this.paint()
+  try{
+   const capture=await api<Capture>('sim/preview',{folder:project.folder,file},request.signal)
+   if(generation===this.generation){this.capture=capture;this.state='Preview'}
+  }catch(error){
+   if(generation===this.generation){this.state='Preview unavailable';report(error)}
+  }finally{
+   if(this.previewRequest===request){this.previewRequest=undefined;this.info();this.paint()}
+  }
+ }
  runModel(){
   if(!this.file&&!this.liveId){this.models(true);return}
   return this.act('play')
@@ -74,8 +108,7 @@ export class Instrument{
   if(!project)return
   const select=async(file:string)=>{
    if(this.project!==project)return
-   await this.model(file)
-   if(start)await this.act('play')
+   await this.model(file,start)
   }
   const entries=(files:string[]):Action[]=>[
    ...files.filter(path=>/\.xml$/i.test(path)).map(path=>({label:path,key:this.file===path?'Selected':'Project',do:()=>select(path)})),
@@ -95,12 +128,12 @@ export class Instrument{
    if(this.project===project)refresh(entries(files))
   })
  }
- async act(action:string){if(this.locked)return;if(action==='speed'&&!this.liveId)return;if(!this.project||(!this.file&&!this.liveId)){message('Select an MJCF model first.');return}
+ async act(action:string){if(this.locked||this.previewRequest)return;if(action!=='play'&&!this.liveId)return;if(!this.project||(!this.file&&!this.liveId)){message('Select an MJCF model first.');return}
  this.locked=true;this.paintTransport();const gen=this.generation
  try{
  if(!this.liveId){if(action==='pause')return
  const opened=await api<{id:string;capture:Capture;cursor:number;offset:number;state:string}>('sim/open',{folder:this.project.folder,file:this.file});if(this.generation!==gen){await api('sim/'+opened.id+'/action',{action:'close'}).catch(()=>{});return}
- this.liveId=opened.id;this.capture=opened.capture;this.cursor=opened.cursor;this.offset=opened.offset;this.index=this.capture.frames.length-1;this.info();this.debug.log('MuJoCo loaded '+this.file);this.pollLoop()}
+ this.liveId=opened.id;this.capture=opened.capture;this.cursor=opened.cursor;this.offset=opened.offset;this.index=this.capture.frames.length-1;this.state='Paused';this.info();this.debug.log('MuJoCo loaded '+this.file);this.pollLoop()}
  this.stopReplay();this.following=true;const result=await api<Update>('sim/'+this.liveId+'/action',{action,after:this.cursor,speed:Number(el<HTMLSelectElement>('speed').value)});if(gen!==this.generation)return;this.accept(result,action==='reset');this.debug.log('Simulation '+action+' · '+(this.capture?.frames[this.index]?.t??0).toFixed(3)+' s')
  }catch(e){report(e);this.debug.log(String(e));if(this.liveId){await this.release();this.state='Stopped';this.paint()}}finally{this.locked=false;this.paintTransport()}}
  private pollLoop(){clearInterval(this.timer);this.timer=window.setInterval(()=>void this.poll(),50)}
@@ -117,13 +150,14 @@ export class Instrument{
  const add=(id:string,label:string,value:string,color?:string)=>{const row=node('div','','field'),left=node('span',label);if(color){const s=node('i','','swatch');s.style.background=color;left.prepend(s)}row.append(left,node('output',value));el(id).append(row)}
  const c=this.capture;if(!c)return;c.joints.forEach((j,i)=>add('joints',j.name,'',tint(i)));if(c.actuators?.length){el('actuators').append(node('h3','Actuators'));c.actuators.forEach(a=>add('actuators',a.name,'—'))}add('solver','Δt',(c.dt*1000).toFixed(1)+' ms');add('solver','Hz',String(Math.round(1/c.dt)));add('solver','method',c.integrator)}
  paint(){const c=this.capture,f=c?.frames[this.index],canvas=el<HTMLCanvasElement>('scene');for(const b of document.querySelectorAll<HTMLElement>('[data-projection]'))b.setAttribute('aria-pressed',String(b.dataset.projection===this.camera.mode))
- if(c&&f&&canvas.clientWidth){scene(canvas,c,this.index,this.trace,this.camera,this.showOrigins);el('joints').querySelectorAll('output').forEach((o,i)=>o.textContent=f.q[i].toFixed(3)+' '+c.joints[i].unit);el('actuators').querySelectorAll('output').forEach((o,i)=>o.textContent=(f.actuatorForce?.[i]?.toFixed(2)??'—')+' '+(c.actuators?.[i].unit||''))}
+ const preview=this.state==='Preview'
+ if(c&&f&&canvas.clientWidth){scene(canvas,c,this.index,this.trace&&!preview,this.camera,this.showOrigins);if(!preview){el('joints').querySelectorAll('output').forEach((o,i)=>o.textContent=f.q[i].toFixed(3)+' '+c.joints[i].unit);el('actuators').querySelectorAll('output').forEach((o,i)=>o.textContent=(f.actuatorForce?.[i]?.toFixed(2)??'—')+' '+(c.actuators?.[i].unit||''))}}
  if(!f&&canvas.width){const g=canvas.getContext('2d');g?.clearRect(0,0,canvas.width,canvas.height)}
  el('scene-empty').hidden=!!(this.file||c);el('scene-note').hidden=!(this.file||c)
- el('scene-note').textContent=this.liveId?'MuJoCo '+(c?.engine||''):c?'Reference capture · MuJoCo '+c.engine:this.file?'Run model to initialize MuJoCo':'Select an MJCF model'
- el('time').textContent=(f?.t??0).toFixed(3)+' s';const slider=el<HTMLInputElement>('timeline');slider.max=String(Math.max(0,(c?.frames.length||1)-1));slider.value=String(this.index);slider.style.setProperty('--progress',(this.index/Math.max(1,+slider.max))*100+'%')
- el('state').textContent='Simulation · '+this.state;el('capture-label').textContent=c?c.frames.length+' samples':'Local workspace'
- this.paintTransport();this.debug.update(c,this.index)}
+ el('scene-note').textContent=this.liveId?'MuJoCo '+(c?.engine||''):preview?'Model preview':c?'Reference capture · MuJoCo '+c.engine:this.file?this.state:'Select an MJCF model'
+ el('time').textContent=f&&!preview?f.t.toFixed(3)+' s':'—';const slider=el<HTMLInputElement>('timeline');slider.max=String(Math.max(0,(c?.frames.length||1)-1));slider.value=String(this.index);slider.style.setProperty('--progress',(this.index/Math.max(1,+slider.max))*100+'%')
+ el('state').textContent='Simulation · '+this.state;el('capture-label').textContent=c&&!preview?c.frames.length+' samples':'Local workspace'
+ this.paintTransport();this.debug.update(preview?undefined:c,this.index)}
  private paintTransport(){
   const play=el<HTMLButtonElement>('play'),playing=this.state==='Running'||this.replaying
   const pressed=String(playing)
@@ -133,13 +167,16 @@ export class Instrument{
    play.append(node('span',playing?'Pause':'Run sim'))
   }
   play.title=playing?'Pause simulation':'Play simulation'
-  play.disabled=this.locked||!(this.file||this.capture)
+  play.disabled=this.locked||!!this.previewRequest||!(this.file||this.capture)
   play.setAttribute('aria-busy',String(this.locked))
   play.dataset.paused=String(!playing&&(this.state==='Paused'||(!this.following&&!!this.capture)))
+  for(const id of ['rewind','back','step','latest','timeline'])
+   el<HTMLButtonElement|HTMLInputElement>(id).disabled=!this.capture||this.state==='Preview'
+  el<HTMLButtonElement>('sim-reset').disabled=!this.liveId
  }
  exportCsv(){
   choices('Export CSV',[
-   ...(this.capture?[{label:'Simulation capture',do:()=>this.exportCapture()}]:[]),
+   ...(this.capture&&this.state!=='Preview'?[{label:'Simulation capture',do:()=>this.exportCapture()}]:[]),
    {label:'Session telemetry',do:()=>this.debug.export('csv')},
   ])
  }
