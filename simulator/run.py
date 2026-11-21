@@ -39,7 +39,7 @@ def inspect_xml(raw):
     elements = list(root.iter())
     if root.tag != "mujoco" or len(elements) > 120:
         raise ValueError(
-            "Expected an articulated MJCF model with at most 120 elements."
+            "Expected an MJCF model with at most 120 elements."
         )
     for elem in elements:
         unsupported = set(elem.attrib) - set(FIELDS.get(elem.tag, "").split())
@@ -102,8 +102,8 @@ class Simulation:
         import mujoco as mj
         self.mj = mj
         model = self.model = mj.MjModel.from_xml_string(raw.decode("utf-8"))
-        if not 1 <= model.nq <= 12 or model.nbody + model.nsite > 32 or model.nu > 24:
-            raise ValueError("Use 1–12 joint coordinates, ≤32 bodies plus sites and ≤24 actuators.")
+        if model.nq > 12 or model.nbody + model.nsite > 32 or model.nu > 24:
+            raise ValueError("Use at most 12 joint coordinates, 32 bodies plus sites and 24 actuators.")
         self.data = mj.MjData(model)
         self.dt = float(model.opt.timestep)
         self.meta = metadata(model, title, mj)
@@ -143,6 +143,8 @@ def live():
     first = json.loads(sys.stdin.buffer.readline(256 * 1024))
     sim = Simulation(first["xml"].encode("utf-8"))
     write({**sim.meta, "frames":[sim.sample()]})
+    if first.get("preview"):
+        return
     for line in sys.stdin:
         cmd = json.loads(line)
         if cmd.get("reset"):

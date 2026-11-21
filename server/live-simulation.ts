@@ -114,6 +114,7 @@ class LiveSession {
 export function liveSimulationRoutes(root:string,host:()=>string,token:string){
   const router=Router()
   let active:LiveSession|undefined,starting:NativeModel|undefined,opening=false,closed=false,expiry:NodeJS.Timeout|undefined
+  const previews=new Set<NativeModel>()
   let external:{id:string;folder:string;capture:Capture;offset:number;paused:boolean;reset:boolean;stop:boolean;last:number}|undefined
   const externalState=()=>{if(external&&Date.now()-external.last>5000)external.stop=true;return external}
   const externalSnapshot=(s:NonNullable<typeof external>,after:unknown)=>{const cursor=s.offset+s.capture.frames.length-1;const n=Number(after??-1);const offset=Math.max(s.offset,Number.isSafeInteger(n)?n+1:0);return {state:s.stop?'closed':s.paused?'paused':'playing',speed:1,cursor,offset,frames:s.capture.frames.slice(offset-s.offset)}}
@@ -136,11 +137,28 @@ export function liveSimulationRoutes(root:string,host:()=>string,token:string){
   function finish(){clearTimeout(expiry);active?.stop();active=undefined}
   function touch(){clearTimeout(expiry);expiry=setTimeout(finish,120000);expiry.unref()}
   function find(id:string){if(!active||id!==active.id)throw new Fault('Simulation session expired. Run the model again.',410);touch();return active}
-  router.post('/sim/open',async(req,res)=>{
-    const {folder,file}=req.body||{}
+  async function resolveModel(folder:unknown,file:unknown){
     const dir=await inside(root,folder,'directory'),builtin=builtInModel(file)
     const model=builtin?path.join(base,'examples',builtin.path):await inside(dir,file,'file')
     if(path.extname(model).toLowerCase()!=='.xml'||(await stat(model)).size>65536)throw new Fault('Select an MJCF model under 64 KiB.')
+    return {dir,builtin,model}
+  }
+  router.post('/sim/preview',async(req,res)=>{
+    const {model}=await resolveModel(req.body?.folder,req.body?.file)
+    const xml=await readFile(model,'utf8'),python=pythonPath()
+    if(!python)throw new Fault('Configure the Pivot Python environment first.',503)
+    if(closed||previews.size>=4)throw new Fault('Preview worker unavailable. Try again.',503)
+    if(res.destroyed)return
+    const worker=new NativeModel(python)
+    const stop=()=>worker.stop()
+    previews.add(worker)
+    res.once('close',stop)
+    try{res.json(await worker.request<Capture>({xml,preview:true}))}
+    finally{res.off('close',stop);previews.delete(worker);stop()}
+  })
+  router.post('/sim/open',async(req,res)=>{
+    const {folder,file}=req.body||{}
+    const {dir,builtin,model}=await resolveModel(folder,file)
     if(opening)throw new Fault('A model is already opening.',409)
     if(active && active.key!==model)throw new Fault('Close the current simulation before opening another model.',409)
     if(!active){
@@ -178,5 +196,5 @@ export function liveSimulationRoutes(root:string,host:()=>string,token:string){
     await session.action(req.body?.action,req.body?.speed)
     res.json(session.snapshot(req.body?.action==='reset'?-1:req.body?.after))
   })
-  return {router,close:()=>{closed=true;external&&(external.stop=true);starting?.stop();finish()}}
+  return {router,close:()=>{closed=true;external&&(external.stop=true);starting?.stop();for(const worker of previews)worker.stop();finish()}}
 }
