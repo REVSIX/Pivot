@@ -42,6 +42,7 @@ Press **Ctrl+Shift+P** to open the command palette. Type to filter, use **↑/�
 | Preview or run a model | **Select MJCF model** to inspect its initial pose. **Run simulation** starts physics and playback. Pause, step, and reset affect the simulation session. |
 | Inspect body origins | **Simulation options → Show body origins** adds bearing-shaped markers. The default view shows the model geometry without those overlays. |
 | Plot or export data | **Select debug channels**, **Export CSV**, and **Export telemetry as MCAP**. CSV can export a simulation capture or SDK telemetry. MCAP exports SDK telemetry. |
+| Share a simulation clip | Use the download icon next to **Reset camera** for JPEG, MP4, or GIF. Drag the range ticks, play the loop to review it, then confirm the export in the viewport. |
 | Change the look | Type **Theme**, then press **Enter**. Browse to preview and press **Enter** to apply. Use **Panel translucency (%)** and **Workspace background** to adjust the layout’s appearance. |
 | Run a build or inspect a device | Search for **Task** to run a project task. **Serial Monitor** uses PlatformIO Core when installed and configured. |
 

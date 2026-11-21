@@ -91,3 +91,14 @@ dialog:has(.split-diff){width:min(1160px,96vw);max-height:89vh}
 :root[data-sim-fullscreen] #sim-pane:not([data-controls=shown]):not(:has(:focus-visible)) :is(.panel-head,.transport):not(:hover){opacity:0;pointer-events:none}
 :root[data-sim-fullscreen] #sim-fullscreen{width:auto;padding:0 8px}
 :root[data-sim-fullscreen] #sim-fullscreen span{display:inline;white-space:nowrap}
+
+.simulation-timeline{display:flex;align-items:center;position:relative;align-self:stretch;flex:1;min-width:40px}
+#clip-handles{position:absolute;inset:0 0 auto;height:16px;pointer-events:none}
+#clip-handles input{position:absolute;inset:0;width:100%;height:16px;margin:0;background:transparent;pointer-events:none}
+#clip-handles input::-webkit-slider-thumb{width:10px;height:14px;border:1px solid var(--bg);background:var(--green);cursor:ew-resize;pointer-events:auto}
+#clip-handles input:focus-visible::-webkit-slider-thumb{outline:2px solid var(--text)}
+#clip-actions{position:absolute;z-index:2;right:10px;top:10px;display:flex;align-items:center;gap:8px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:4px;font:11px var(--mono)}
+#clip-times{padding:0 4px;color:var(--muted);white-space:nowrap}
+#cancel-clip,#confirm-clip{padding:5px 8px;border-radius:3px}
+#confirm-clip{background:var(--green);color:#10271a;font-weight:600}
+#confirm-clip:hover{filter:brightness(1.12)}
