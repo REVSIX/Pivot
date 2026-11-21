@@ -17,6 +17,8 @@
 
 Express, Vite, Tailwind CSS, TypeScript, and ws are installed through npm. The lockfile records exact package versions and integrity hashes. Runtime dependencies and plugins retain the license files from their respective packages. Source distributions include the notices for browser assets in `client/public/licenses`.
 
+Pivot uses the MPL-2.0 Mediabunny library for MP4 encoding and the MIT-licensed gifenc library for GIF encoding. [Mediabunny source for the bundled version](https://github.com/Vanilagy/mediabunny/tree/v1.66.2) · [gifenc source](https://github.com/mattdesl/gifenc)
+
 ## University theme marks
 
 The optional theme marks in `client/public/university-logos` identify their corresponding visual themes. Wikimedia Commons lists the artwork as public domain. The marks belong to their respective institutions. Pivot is an independent project.
