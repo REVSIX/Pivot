@@ -80,6 +80,10 @@ namespace PivotDesktop {
         string root,origin;
         int port;
         bool allowClosing, checkingClose, switching;
+        bool fullscreen, previousTopMost;
+        Rectangle previousBounds;
+        Padding previousPadding;
+        FormWindowState previousWindowState;
         Process service;
         ProcessJob job;
 
@@ -149,7 +153,7 @@ namespace PivotDesktop {
         }
         void Save() {
             var doc=new XElement("window",new XElement("root",root),new XElement("port",port),
-                new XElement("maximized",WindowState==FormWindowState.Maximized?"true":"false"));
+                new XElement("maximized",(fullscreen?previousWindowState:WindowState)==FormWindowState.Maximized?"true":"false"));
             string tmp=prefs+".tmp"; doc.Save(tmp);
             if(File.Exists(prefs)) File.Replace(tmp,prefs,null); else File.Move(tmp,prefs);
         }
@@ -163,6 +167,7 @@ namespace PivotDesktop {
             core.Settings.IsStatusBarEnabled=false;
             core.Settings.IsZoomControlEnabled=false;
             core.WebMessageReceived+=OnMessage;
+            core.ContainsFullScreenElementChanged+=(sender,e)=>SetFullscreen(core.ContainsFullScreenElement);
             core.NavigationStarting+=(sender,e)=>{
                 Uri target;
                 e.Cancel=!Uri.TryCreate(e.Uri,UriKind.Absolute,out target) || target.GetLeftPart(UriPartial.Authority)!=origin;
@@ -178,6 +183,27 @@ namespace PivotDesktop {
                 else if(!switching) Fail(new InvalidOperationException("The local workbench could not load: "+e.WebErrorStatus));
             };
             await StartService();
+        }
+        void SetFullscreen(bool enabled) {
+            if(fullscreen==enabled) return;
+            if(enabled) {
+                var display=Screen.FromControl(this);
+                previousWindowState=WindowState;
+                previousBounds=WindowState==FormWindowState.Normal?Bounds:RestoreBounds;
+                previousPadding=Padding;
+                previousTopMost=TopMost;
+                fullscreen=true;
+                WindowState=FormWindowState.Normal;
+                Padding=Padding.Empty;
+                Bounds=display.Bounds;
+                TopMost=true;
+            } else {
+                fullscreen=false;
+                TopMost=previousTopMost;
+                Padding=previousPadding;
+                Bounds=previousBounds;
+                WindowState=previousWindowState;
+            }
         }
         static string Quote(string value) {
             // Windows argv escaping, including a folder path ending in a backslash.
@@ -279,7 +305,7 @@ namespace PivotDesktop {
             // Keep the native sizing border while letting Pivot draw its title bar.
             if(m.Msg==0x83 && m.WParam!=IntPtr.Zero) {m.Result=IntPtr.Zero;return;}
             base.WndProc(ref m);
-            if(m.Msg==0x84 && m.Result==(IntPtr)1 && WindowState==FormWindowState.Normal) {
+            if(m.Msg==0x84 && m.Result==(IntPtr)1 && WindowState==FormWindowState.Normal && !fullscreen) {
                 var p=PointToClient(Cursor.Position); bool l=p.X<4,r=p.X>=ClientSize.Width-4,t=p.Y<4,b=p.Y>=ClientSize.Height-4;
                 int hit=t?(l?13:r?14:12):b?(l?16:r?17:15):l?10:r?11:1;m.Result=(IntPtr)hit;
             }

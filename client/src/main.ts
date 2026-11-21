@@ -2,6 +2,7 @@ import './style.css'
 import {icon} from './icons.ts'
 import {api,bridge,button,choices,close,confirmAction,content,dialog,el,fuzzy,message,modal,native,node,pref,promptText,query,readPref,report,run,setToken,token,type Action} from './ui.ts'
 import {initializeLayout,current,focusEditorLayout,layoutActions,modeActions,setMode,showShell,sidebar,type Mode} from './layout.ts'
+import {installSimulationFullscreen} from './simulation-fullscreen.ts'
 import {Instrument} from './instrument.ts'
 import {Appearance} from './appearance.ts'
 import {Explorer} from './explorer.ts'
@@ -204,7 +205,7 @@ document.addEventListener('keydown',e=>{
 window.addEventListener('focus',refreshSoon)
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshSoon();instrument.paint()}})
 document.addEventListener('contextmenu',event=>event.preventDefault())
-async function boot(){initializeLayout(()=>{
+async function boot(){installSimulationFullscreen();initializeLayout(()=>{
  const control=el('run'),label=current==='simulation'?'Run simulation':'Run file'
  control.title=label;control.setAttribute('aria-label',label);control.querySelector('span')!.textContent=label
  instrument.paint()
