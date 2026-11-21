@@ -88,10 +88,11 @@ async function runCurrentFile(){
   if(editor===session)await newShell({runFile})
  }finally{readingRunFile=false}
 }
-function stopTerminal(){
+async function stopRun(){
  const terminal=shells.find(shell=>shell.id===activeShell&&!shell.ended)
+ const simulation=instrument.stop()
  if(terminal?.session)terminal.session.interrupt()
- else message('Select a live terminal to send Ctrl+C.')
+ if(!await simulation&&!terminal?.session)message('No active simulation or selected terminal.')
 }
 async function startEditor(file?:string){
  if(!project||editorLoading)return;if(editor){if(file)editor.open(file);return}
@@ -167,7 +168,7 @@ function palette(){
   {label:'Git branches and remote operations',do:()=>explorer?.gitMenu()},
   {label:'Refresh explorer and Git status',do:()=>explorer?.refresh()},
   {label:'Run current file',do:runCurrentFile},
-  {label:'Stop terminal (Ctrl+C)',do:stopTerminal},
+  {label:'Stop simulation and send Ctrl+C to terminal',do:stopRun},
   {label:'New terminal',do:()=>newShell()},
   {label:'Serial Monitor',do:()=>newShell({shell:'serial'})},
   {label:'Close terminal',do:closeShell},
@@ -208,7 +209,7 @@ const drag=document.querySelector<HTMLElement>('.title-drag')!;drag.onpointerdow
 el('settings').onclick=settings;el('palette').onclick=()=>palette();el('music').onclick=music;el('dismiss').onclick=close
 el('project-name').onclick=()=>run(()=>browse());el('branch').onclick=()=>explorer?.gitMenu();el('git-menu').onclick=()=>explorer?.gitMenu();el('new-file').onclick=()=>explorer?.files();el('refresh').onclick=()=>run(()=>explorer?.refresh())
 el('new-shell').onclick=()=>run(()=>newShell());el('close-shell').onclick=closeShell
-el('run').onclick=()=>run(()=>current==='simulation'?instrument.runModel():runCurrentFile());el('stop').onclick=stopTerminal
+el('run').onclick=()=>run(()=>current==='simulation'?instrument.runModel():runCurrentFile());el('stop').onclick=()=>run(stopRun)
 el('rail-explorer').classList.add('active');el('rail-explorer').onclick=()=>showSidebar('explorer');el('rail-search').onclick=()=>run(()=>explorer?.find());el('rail-git').onclick=()=>showSidebar('git');el('rail-debug').onclick=()=>setMode('debug');el('rail-run').onclick=()=>choices('Project tasks',(explorer?.tasks||[]).map(t=>({label:t.label,do:()=>explorer?.runTask(t.id)})))
 document.addEventListener('keydown',e=>{
  if(e.ctrlKey&&e.shiftKey&&e.code==='KeyP'){e.preventDefault();e.stopImmediatePropagation();if(dialog.open)close();else palette();return}
