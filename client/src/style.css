@@ -80,3 +80,5 @@ dialog:has(.split-diff){width:min(1160px,96vw);max-height:89vh}
 .typing-word{display:inline-block;white-space:nowrap}
 .typing-correct{color:var(--green)}
 .typing-wrong{color:var(--danger);text-decoration:underline}
+.terminal-clipboard{position:fixed;inset:auto;margin:0;min-width:136px;padding:4px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--text);box-shadow:0 8px 24px #0005}
+.terminal-clipboard button:disabled{opacity:.5}
