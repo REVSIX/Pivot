@@ -17,3 +17,15 @@
 
 Express, Vite, Tailwind CSS, TypeScript, and ws are installed through npm. The lockfile records exact package versions and integrity hashes. Runtime dependencies and plugins retain the license files from their respective packages. Source distributions include the notices for browser assets in `client/public/licenses`.
 
+## University theme marks
+
+The optional theme marks in `client/public/university-logos` identify their corresponding visual themes. Wikimedia Commons lists the artwork as public domain. The marks belong to their respective institutions. Pivot is an independent project.
+
+- [Georgia Tech interlocking GT](https://commons.wikimedia.org/wiki/File:Georgia_Tech_Yellow_Jackets_logo.svg)
+- [MIT red mark](https://commons.wikimedia.org/wiki/File:MIT_2023_red_logo.svg)
+- [Stanford wordmark](https://commons.wikimedia.org/wiki/File:Stanford_wordmark_(2012).svg)
+- [Princeton Tigers mark](https://commons.wikimedia.org/wiki/File:Princeton_Tigers_logo.svg)
+- [Caltech wordmark](https://commons.wikimedia.org/wiki/File:Caltech_Logo.svg)
+- [Carnegie Mellon wordmark](https://commons.wikimedia.org/wiki/File:Carnegie_Mellon_University_wordmark.svg)
+- [UC Berkeley wordmark](https://commons.wikimedia.org/wiki/File:University_of_California,_Berkeley_logo.svg)
+

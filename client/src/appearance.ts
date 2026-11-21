@@ -1,10 +1,19 @@
 import { isPalette, isTheme, themes, type Palette } from '../../shared/theme.ts'
-import { api, button, close, content, message, modal, node, pref, promptText, readPref, run, type Action } from './ui.ts'
+import { api, button, close, content, el, message, modal, node, pref, promptText, readPref, run, type Action } from './ui.ts'
 
 const names={tokyo:'Tokyo Night',nord:'Nord',gruvbox:'Gruvbox',rose:'Rosé Pine'}
 type Colors={bg:string;main:string;caret:string;sub:string;subAlt:string;text:string;error:string}
 type Catalog=Record<string,Colors>
-type SavedPalette={name:string;colors:Palette}
+const universities=new Map<string,Colors&{logo:string}>(Object.entries({
+ 'Georgia Tech':{logo:'georgia-tech',bg:'#011337',subAlt:'#0b2248',text:'#ffffff',main:'#d1b140',caret:'#f9f6e5',sub:'#829ab5',error:'#ff8e9d'},
+ MIT:{logo:'mit',bg:'#1b1b1e',subAlt:'#242429',text:'#f1f1f2',main:'#f47487',caret:'#c2c4c6',sub:'#929399',error:'#ff9a76'},
+ Stanford:{logo:'stanford',bg:'#241819',subAlt:'#302123',text:'#f8eeea',main:'#ed7f89',caret:'#f0d19e',sub:'#a79192',error:'#ff9281'},
+ Princeton:{logo:'princeton',bg:'#1c1917',subAlt:'#2a231f',text:'#fbf3ed',main:'#f58025',caret:'#ffcb9a',sub:'#a69c94',error:'#ff8690'},
+ Caltech:{logo:'caltech',bg:'#191b20',subAlt:'#24272e',text:'#f4f4f6',main:'#ff853c',caret:'#a0d5e1',sub:'#9b9da5',error:'#ff8c9d'},
+ CMU:{logo:'cmu',bg:'#191c20',subAlt:'#24282e',text:'#f2f2f4',main:'#f46b84',caret:'#8fcadb',sub:'#959fa9',error:'#ffb08b'},
+ Berkeley:{logo:'berkeley',bg:'#101d33',subAlt:'#192c48',text:'#f5f7fa',main:'#fdb515',caret:'#85c0f9',sub:'#8d9eb7',error:'#ff899f'},
+}))
+type SavedPalette={name:string;colors:Palette;university?:boolean}
 const root=document.documentElement
 
 function hex(value:string, background='#141520'){
@@ -32,8 +41,17 @@ function palette(colors:Colors):Palette{
 
 function restorePalette():SavedPalette{
  const saved=readPref<unknown>('palette',null)
- if(saved&&typeof saved==='object'&&'name' in saved&&typeof saved.name==='string'&&'colors' in saved&&isPalette(saved.colors))
-  return {name:saved.name,colors:saved.colors}
+ if(saved&&typeof saved==='object'&&'name' in saved&&typeof saved.name==='string'&&'colors' in saved&&isPalette(saved.colors)){
+  const {name,colors}=saved
+  const university=universities.get(name)
+  if(university){
+   const original=name==='Georgia Tech'?{...university,bg:'#051e39',subAlt:'#112a45',main:'#d7b16d'}:university
+   const legacy=Object.entries(palette(original)).every(([key,value])=>colors[key as keyof Palette]===value)
+   if(('university' in saved&&saved.university===true)||(!('university' in saved)&&legacy))
+    return {name,colors:palette(university),university:true}
+  }
+  return {name,colors}
+ }
  const previous=readPref('theme','tokyo')
  const name=isTheme(previous)?previous:'tokyo'
  return {name:names[name],colors:themes[name]}
@@ -46,11 +64,18 @@ export class Appearance {
  private catalogRequest?:Promise<void>
  constructor(private readonly changed:(colors:Palette,preview:boolean)=>void){}
 
- private render(colors:Palette,preview=false){
+ private render(colors:Palette,preview=false,school?:string){
   for(const [key,color] of Object.entries(colors))root.style.setProperty('--'+key,color)
   const bg=colors.bg
   const brightness=[1,3,5].reduce((sum,i)=>sum+parseInt(bg.slice(i,i+2),16),0)
   root.style.colorScheme=brightness>430?'light':'dark'
+  const brand=el('pivot-brand'),icon=brand.querySelector('img')!
+  const university=school?universities.get(school):undefined
+  const src=university?'/university-logos/'+university.logo+'.svg':'/pivot.svg'
+  if(icon.getAttribute('src')!==src)icon.src=src
+  icon.alt=university?school+' logo':''
+  brand.toggleAttribute('data-university',!!university)
+  brand.querySelector('b')!.hidden=!!university
   this.changed(colors,preview)
  }
 
@@ -60,25 +85,29 @@ export class Appearance {
   root.dataset.ambient=String(readPref('ambient',false))
   const image=readPref('background','')
   root.style.setProperty('--background-image',/^data:image\/(png|jpeg|webp|gif);base64,[a-z\d+/=]+$/i.test(image)?'url("'+image+'")':'none')
-  this.render(this.selected.colors)
+  this.resetPreview()
  }
 
- resetPreview(){this.render(this.selected.colors)}
+ resetPreview(){this.render(this.selected.colors,false,this.selected.university?this.selected.name:undefined)}
 
- private select(name:string,colors:Palette){
-  this.selected={name,colors};pref('palette',this.selected);this.apply()
+ private select(name:string,colors:Palette,university=false){
+  this.selected={name,colors,university};pref('palette',this.selected);this.apply()
  }
 
  themeActions():Action[]{
-  const action=(name:string,colors:Palette,source='Theme'):Action=>({
-   label:name,key:this.selected.name===name?'Active':source,
-   do:()=>this.select(name,colors),preview:()=>this.render(colors,true),
-  })
+  const action=(name:string,colors:Palette,source='Theme'):Action=>{
+   const university=source==='University'
+   return {
+    label:name,key:this.selected.name===name&&!!this.selected.university===university?'Active':source,
+    do:()=>this.select(name,colors,university),preview:()=>this.render(colors,true,university?name:undefined),
+   }
+  }
   return [
    ...Object.entries(themes).map(([key,colors])=>action(names[key as keyof typeof names],colors)),
    ...this.custom.map(({name,colors})=>action(name,colors,'Custom')),
    ...Object.entries(this.catalog).sort(([a],[b])=>a.localeCompare(b)).map(([id,colors])=>
     action(id.replaceAll('_',' '),palette(colors),'Monkeytype')),
+   ...Array.from(universities,([name,colors])=>action(name,palette(colors),'University')),
   ]
  }
 

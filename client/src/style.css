@@ -22,6 +22,7 @@ dialog{position:fixed;inset:0;margin:auto;width:min(535px,92vw);max-height:76vh;
 
 
 .brand b span{display:inline-block;width:.18em;height:.18em;margin-left:.08em;border-radius:50%;background:#94df83}
+.brand[data-university] img{width:auto;max-width:145px;height:28px;padding:3px 6px;object-fit:contain;background:#fbfaf6;border-radius:3px}
 .run-tools #settings{width:32px;padding:0;border:1px solid var(--line);border-radius:5px;color:var(--muted);margin-left:8px}
 .choice-query{position:sticky;top:0;z-index:1}
 #dialog-content:has(.choice-query){scroll-padding-top:36px}
