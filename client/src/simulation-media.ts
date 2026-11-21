@@ -39,8 +39,9 @@ export async function exportStill(view:MediaView,index:number){
 
 function* samples(capture:Capture,start:number,end:number,fps:number){
  const frames=capture.frames,begin=frames[start].t,duration=frames[end].t-begin
- if(!(duration>0))throw new Error('Choose a range with two different timestamps.')
- const count=Math.max(1,Math.ceil(duration*fps)),durationPerFrame=duration/count
+ if(!Number.isFinite(duration)||duration<=0)throw new Error('Choose a range with two different timestamps.')
+ const count=Math.max(1,Math.min(end-start,Math.ceil(duration*fps)))
+ const durationPerFrame=duration/count
  let index=start
  for(let i=0;i<=count;i++){
   const time=i*durationPerFrame
