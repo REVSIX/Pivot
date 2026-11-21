@@ -130,7 +130,7 @@ async function browse(folder=project?.folder||'.'){
 }
 function openThemes(){
  const refresh=choices('Themes',appearance.themeActions(),'Filter themes…',{
-  previewOnFilter:false,resetPreview:()=>appearance.resetPreview(),
+  previewOnFilter:false,resetPreview:()=>appearance.resetPreview(),initialSelection:action=>action.key==='Active',
  })
  refreshPaletteCatalog=()=>refresh(appearance.themeActions())
  if(token)void appearance.loadCatalog().then(refreshPaletteCatalog)

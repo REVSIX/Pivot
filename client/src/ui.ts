@@ -30,20 +30,21 @@ interface ChoiceOptions{
  score?:(action:Action,query:string)=>number
  resetPreview?:()=>void
  previewOnFilter?:boolean
+ initialSelection?:(action:Action)=>boolean
 }
 export function choices(title:string,actions:Action[],placeholder='Filter…',options:ChoiceOptions={}){
  modal(title);const search=node('input','','query choice-query');search.placeholder=placeholder;search.setAttribute('aria-label',title+' filter')
- const list=node('div');let selected=0, shown:Action[]=[], previewed:Action|undefined
+ const list=node('div');let selected=0, shown:Action[]=[], previewed:Action|undefined, anchorInitial=true
  const score=options.score||((action:Action,query:string)=>fuzzy(action.label,query))
  const clear=()=>{if(previewed){previewed=undefined;options.resetPreview?.()}}
  clearPreview=()=>{clearPreview=()=>{};clear()}
  function execute(a:Action){close();run(a.do)}
- function highlight(index:number,scroll=true,preview=true){
+ function highlight(index:number,scroll=true,preview=true,center=false){
   list.children[selected]?.classList.remove('selected')
   selected=index
   const row=list.children[selected]
   row?.classList.add('selected')
-  if(scroll&&selected)row?.scrollIntoView({block:'nearest'})
+  if(scroll&&selected)row?.scrollIntoView({block:center?'center':'nearest'})
   if(!selected&&scroll)content.scrollTop=0
   if(!preview){clear();return}
   const action=shown[selected]
@@ -59,17 +60,18 @@ export function choices(title:string,actions:Action[],placeholder='Filter…',op
    if(a.key)b.append(node('small',a.key))
    if(a.preview)b.dataset.preview=''
    if(options.resetPreview){
-    b.onpointermove=event=>{if(event.pointerType==='mouse'&&(selected!==i||a.preview&&previewed!==a))highlight(i,false)}
-    b.onfocus=()=>highlight(i,false)
+    b.onpointermove=event=>{if(event.pointerType==='mouse'&&(selected!==i||a.preview&&previewed!==a)){anchorInitial=false;highlight(i,false)}}
+    b.onfocus=()=>{anchorInitial=false;highlight(i,false)}
    }
    list.append(b)
   })
-  if(shown.length)highlight(keep?Math.max(0,shown.findIndex(a=>a.label===keep.label&&a.key===keep.key)):0,true,options.previewOnFilter!==false)
+  const initial=anchorInitial&&!search.value.trim()&&options.initialSelection?shown.findIndex(options.initialSelection):-1
+  if(shown.length)highlight(initial>=0?initial:keep?Math.max(0,shown.findIndex(a=>a.label===keep.label&&a.key===keep.key)):0,true,options.previewOnFilter!==false,initial>=0)
   else{list.append(node('p','No matches.','hint'));clear();content.scrollTop=0}
  }
- search.oninput=()=>draw()
- search.onkeydown=e=>{if(!shown.length)return;if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();highlight((selected+shown.length+(e.key==='ArrowDown'?1:-1))%shown.length)}if(e.key==='Enter'){e.preventDefault();execute(shown[selected])}}
- content.append(search,list);draw();search.focus()
+ search.oninput=()=>{anchorInitial=!search.value.trim();draw()}
+ search.onkeydown=e=>{if(!shown.length)return;if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();anchorInitial=false;highlight((selected+shown.length+(e.key==='ArrowDown'?1:-1))%shown.length)}if(e.key==='Enter'){e.preventDefault();execute(shown[selected])}}
+ content.append(search,list);draw();search.focus({preventScroll:true})
  return (next:Action[])=>{if(dialog.open&&search.isConnected){actions=next;draw(shown[selected])}}
 }
 export function promptText(title:string,label:string,initial:string,submit:(value:string)=>Promise<unknown>|unknown){
