@@ -79,10 +79,16 @@ export class Appearance {
   root.style.colorScheme=light?'light':'dark'
   const brand=el('pivot-brand'),icon=brand.querySelector('img')!
   const university=school?universities.get(school):undefined
-  const src=university?'/university-logos/'+university.logo+'.svg':light?'/pivot-light.svg':'/pivot.svg'
+  const src=light?'/pivot-light.svg':'/pivot.svg'
   if(icon.getAttribute('src')!==src)icon.src=src
-  icon.alt=university?school+' logo':''
-  brand.toggleAttribute('data-university',!!university)
+  icon.alt=university?'Pivot':''
+  const universityLogo=el<HTMLImageElement>('university-brand')
+  universityLogo.hidden=!university
+  if(university){
+   const logo='/university-logos/'+university.logo+'.svg'
+   if(universityLogo.getAttribute('src')!==logo)universityLogo.src=logo
+   universityLogo.alt=school+' logo'
+  }
   brand.querySelector('b')!.hidden=!!university
   this.changed(colors,preview)
  }
@@ -93,6 +99,9 @@ export class Appearance {
   root.dataset.ambient=String(readPref('ambient',false))
   const image=readPref('background','')
   root.style.setProperty('--background-image',/^data:image\/(png|jpeg|webp|gif);base64,[a-z\d+/=]+$/i.test(image)?'url("'+image+'")':'none')
+  const theme=el('active-theme')
+  theme.textContent=this.selected.name
+  theme.title='Active theme: '+this.selected.name
   this.resetPreview()
  }
 
