@@ -81,7 +81,7 @@ def metadata(model, title, mj):
     geoms = [{"type": mj.mjtGeom(int(model.geom_type[i])).name.removeprefix("mjGEOM_").lower(),
               "body": int(model.geom_bodyid[i]) - 1, "pos": values(model.geom_pos[i]),
               "quat": values(model.geom_quat[i]), "size": values(model.geom_size[i])}
-             for i in range(model.ngeom)]
+             for i in range(model.ngeom) if model.geom_rgba[i, 3] > 0]
     return {"title": title, "engine": mj.__version__, "dt": float(model.opt.timestep),
             "nodes": nodes, "joints": joints, "actuators": actuators, "geoms": geoms,
             "integrator": mj.mjtIntegrator(int(model.opt.integrator)).name.removeprefix("mjINT_")}
