@@ -9,7 +9,7 @@ type Task={id:string;label:string;command:string}
 export class Explorer{
  project:Project;selected='';expanded:Set<string>;git?:Git;tasks:Task[]=[];wsl=false;revision=0
  private dragged=''
- constructor(project:Project,readonly openFile:(file:string)=>void,readonly openProject:(folder:string)=>Promise<void>,readonly task:(id:string)=>void,readonly onMove:(from:string,to:string)=>void){this.project=project;this.expanded=new Set(readPref<string[]>('tree.'+project.folder,['.','src','models']))}
+ constructor(project:Project,readonly openFile:(file:string)=>void,readonly openProject:(folder:string)=>Promise<void>,readonly task:(id:string)=>void,readonly onMove:(from:string,to:string)=>void,readonly openInEditor=openFile){this.project=project;this.expanded=new Set(readPref<string[]>('tree.'+project.folder,['.','src','models']))}
  async refresh(){
   const rev=++this.revision,folder=this.project.folder
   const [git,tools]=await Promise.all([api<Git>(query('git',{folder})),api<{tasks:Task[];wsl:boolean}>(query('tasks',{folder}))])
@@ -25,7 +25,7 @@ export class Explorer{
     const isDir=entry.kind==='directory',b=button('',()=>isDir?this.toggle(entry.path):this.openFile(entry.path),'tree-row'+(entry.path===this.selected?' active':''));b.style.paddingLeft=(8+depth*12)+'px';b.dataset.file=entry.path;b.title=entry.path
     b.append(isDir?glyph('arrow','arrow'+(this.expanded.has(entry.path)?' open':'')):node('span','','arrow'),glyph(isDir?'folder':fileIcon(entry.name),isDir?'dir-icon':'file-icon'),node('span',entry.name,'name'))
     const change=this.git?.changes.find(c=>c.path===entry.path);if(change)b.append(node('span',mark(change),'git-mark'+(mark(change)==='U' || mark(change)==='A'?' add':'')))
-    b.oncontextmenu=e=>{e.preventDefault();this.files(entry.path)}
+    b.oncontextmenu=e=>{e.preventDefault();this.files(entry.path,!isDir)}
     b.draggable=true
     b.ondragstart=e=>{if(!e.dataTransfer)return;this.dragged=entry.path;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',entry.path)}
     b.ondragend=()=>{this.dragged=''}
@@ -67,10 +67,11 @@ export class Explorer{
  }
  async toggle(path:string){if(this.expanded.has(path))this.expanded.delete(path);else this.expanded.add(path);pref('tree.'+this.project.folder,[...this.expanded]);await this.tree()}
  select(file:string){this.selected=file;for(const row of el('tree').querySelectorAll<HTMLElement>('[data-file]'))row.classList.toggle('active',row.dataset.file===file)}
- files(target=this.selected){
+ files(target=this.selected,isFile=!!target){
   const parent=target.includes('/')?target.slice(0,target.lastIndexOf('/')+1):''
   const mutate=async(action:string,path:string,to?:string)=>{await api('file',{action,path,to,confirm:action==='delete'?path:undefined,folder:this.project.folder});await this.refresh();if(action==='create'||action==='rename')this.openFile(to||path)}
   const actions:Action[]=[{label:'Create file',do:()=>promptText('Create file','Project-relative path',parent,v=>mutate('create',v))},{label:'Create directory',do:()=>promptText('Create directory','Project-relative path',parent,v=>mutate('mkdir',v))}]
+  if(isFile)actions.unshift({label:'Open in Editor',do:()=>this.openInEditor(target)})
   if(target)actions.push({label:'Rename '+target,do:()=>promptText('Rename','New project-relative path',target,v=>this.move(target,v))},{label:'Reveal '+target,do:()=>mutate('reveal',target)},{label:'Delete '+target,do:()=>confirmAction('Delete entry','Permanently remove '+target+' from disk? Directories must be empty.','Delete '+target,()=>mutate('delete',target))})
   choices('File operations',actions)
  }
