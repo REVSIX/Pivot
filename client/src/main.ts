@@ -100,6 +100,19 @@ async function startEditor(file?:string){
  ()=>{if(gen!==epoch)return;el('editor-message').textContent='';if(selected&&selected!==file)editor?.open(selected);editor?.theme(appearance.selected.colors);if((current==='code'||current==='split')&&!dialog.open&&!(document.activeElement?.closest('#term-pane')))editor?.focus()})
  }catch(e){el('editor-message').textContent='Editor unavailable. See terminal setup in README.';report(e)}finally{if(gen===epoch)editorLoading=false}}
 async function openFile(file:string){if(!project)return;selected=file;pref('file.'+project.folder,file);showSelected();if(current!=='code'&&current!=='split')setMode('code');await startEditor(file)}
+let explorerOpen=0
+async function openExplorerFile(file:string){
+ const request=++explorerOpen,workspace=project
+ if(!workspace)return
+ if(current!=='simulation')return openFile(file)
+ if(/\.xml$/i.test(file)){
+  const {text}=await api<{text:string}>(query('file',{folder:workspace.folder,path:file}))
+  if(request!==explorerOpen||workspace!==project||current!=='simulation')return
+  const root=new DOMParser().parseFromString(text,'application/xml').documentElement
+  if(root.tagName==='mujoco'){explorer?.select(file);await instrument.model(file);return}
+ }
+ choices(file,[{label:'Open in Editor',do:()=>openFile(file)}])
+}
 async function switchProject(folder:string){
  if(project?.folder===folder){close();return}
  if(editor||shells.some(s=>!s.ended)){confirmAction('Switch project','Save open buffers first. Switching ends the editor, terminals, and simulation for this project.','Switch project',()=>loadProject(folder));return}
@@ -111,7 +124,7 @@ async function loadProject(folder:string){
  epoch++;const gen=epoch;explorer?.dispose()
  editor?.close();editor=undefined;editorLoading=false;el('editor-screen').replaceChildren();el('editor-message').textContent='';while(shells.length)removeShell(shells[0].id);shellSequence=0
  project=next;pref('folder',folder);el('project-name').querySelector('span')!.textContent=folder==='.'?next.rootName:folder.split('/').at(-1)!
- explorer=new Explorer(next,f=>run(()=>openFile(f)),switchProject,id=>run(()=>newShell({task:id})),(from,to)=>{if(gen===epoch)fileMoved(from,to)})
+ explorer=new Explorer(next,f=>run(()=>openExplorerFile(f)),switchProject,id=>run(()=>newShell({task:id})),(from,to)=>{if(gen===epoch)fileMoved(from,to)},f=>run(()=>openFile(f)))
  await Promise.all([explorer.refresh(),instrument.setProject(next)])
  if(gen!==epoch)return
  selected=readPref('file.'+folder,'')
