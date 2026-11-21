@@ -21,8 +21,10 @@ dialog{position:fixed;inset:0;margin:auto;width:min(535px,92vw);max-height:76vh;
 @media(max-width:730px){#workbench{height:auto;min-height:100dvh;grid-template-rows:40px auto 1fr 40px}.titlebar{padding:0 5px}.brand{font-size:23px;padding-right:8px}.brand img{width:24px}.header-link{padding:0 6px;font-size:10px}.toolbar{flex-wrap:wrap;justify-content:space-between;padding:5px;gap:4px}#modes button{padding:0 6px;height:26px}.run-tools button>span,.run-tools #stop>span,.run-tools #reset>span{display:none}.run-tools button{height:25px;padding:0 4px}.run-tools #run{padding:0 7px}#workspace,#workbench.side-off #workspace{display:block;padding:2px 5px}.rail,.grip,#sidebar{display:none}#workbench.mobile-side #sidebar{display:flex;max-height:65vh;margin-bottom:5px}#panels,#workbench[data-max] #panels{display:flex;flex-direction:column;gap:5px}.stack{display:flex;flex-direction:column;gap:5px}.panel{min-height:0}#code-pane,#sim-pane{height:345px}#term-pane{height:180px}#debug-pane{height:280px}.dock{padding:0 6px;gap:6px}.footer-stat{display:none}.brand b{letter-spacing:-1px}#workbench[data-max] #panels .panel.is-max{height:70vh}#workbench[data-mode=code] #code-pane,#workbench[data-mode=debug] #debug-pane,#workbench[data-mode=simulation] #sim-pane{height:62vh}}
 
 
-.brand b span{display:inline-block;width:.18em;height:.18em;margin-left:.08em;border-radius:50%;background:#94df83}
-.brand[data-university] img{width:auto;max-width:145px;height:28px;padding:3px 6px;object-fit:contain;background:#fbfaf6;border-radius:3px}
+.brand b{color:var(--text)}
+.brand b span{display:inline-block;width:.18em;height:.18em;margin-left:.08em;border-radius:50%;background:var(--accent)}
+.brand #university-brand{width:auto;max-width:145px;height:28px;padding:3px 6px;object-fit:contain;background:#fbfaf6;border-radius:3px}
+.footer-theme{min-width:0;max-width:20vw;padding-right:12px;border-right:1px solid var(--line);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:10px var(--mono);color:var(--muted)}
 .run-tools #settings{width:32px;padding:0;border:1px solid var(--line);border-radius:5px;color:var(--muted);margin-left:8px}
 .choice-query{position:sticky;top:0;z-index:1}
 #dialog-content:has(.choice-query){scroll-padding-top:36px}
