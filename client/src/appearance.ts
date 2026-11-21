@@ -4,6 +4,15 @@ import { api, button, close, content, message, modal, node, pref, promptText, re
 const names={tokyo:'Tokyo Night',nord:'Nord',gruvbox:'Gruvbox',rose:'Rosé Pine'}
 type Colors={bg:string;main:string;caret:string;sub:string;subAlt:string;text:string;error:string}
 type Catalog=Record<string,Colors>
+const universityColors:Catalog={
+ 'Georgia Tech':{bg:'#051e39',subAlt:'#112a45',text:'#ffffff',main:'#d7b16d',caret:'#f9f6e5',sub:'#829ab5',error:'#ff8e9d'},
+ MIT:{bg:'#1b1b1e',subAlt:'#242429',text:'#f1f1f2',main:'#f47487',caret:'#c2c4c6',sub:'#929399',error:'#ff9a76'},
+ Stanford:{bg:'#241819',subAlt:'#302123',text:'#f8eeea',main:'#ed7f89',caret:'#f0d19e',sub:'#a79192',error:'#ff9281'},
+ Princeton:{bg:'#1c1917',subAlt:'#2a231f',text:'#fbf3ed',main:'#f58025',caret:'#ffcb9a',sub:'#a69c94',error:'#ff8690'},
+ Caltech:{bg:'#191b20',subAlt:'#24272e',text:'#f4f4f6',main:'#ff853c',caret:'#a0d5e1',sub:'#9b9da5',error:'#ff8c9d'},
+ CMU:{bg:'#191c20',subAlt:'#24282e',text:'#f2f2f4',main:'#f46b84',caret:'#8fcadb',sub:'#959fa9',error:'#ffb08b'},
+ Berkeley:{bg:'#101d33',subAlt:'#192c48',text:'#f5f7fa',main:'#fdb515',caret:'#85c0f9',sub:'#8d9eb7',error:'#ff899f'},
+}
 type SavedPalette={name:string;colors:Palette}
 const root=document.documentElement
 
@@ -75,6 +84,7 @@ export class Appearance {
    do:()=>this.select(name,colors),preview:()=>this.render(colors,true),
   })
   return [
+   ...Object.entries(universityColors).map(([name,colors])=>action(name,palette(colors),'University')),
    ...Object.entries(themes).map(([key,colors])=>action(names[key as keyof typeof names],colors)),
    ...this.custom.map(({name,colors})=>action(name,colors,'Custom')),
    ...Object.entries(this.catalog).sort(([a],[b])=>a.localeCompare(b)).map(([id,colors])=>
