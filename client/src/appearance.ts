@@ -77,11 +77,10 @@ export class Appearance {
   for(const [key,color] of Object.entries(colors))root.style.setProperty('--'+key,color)
   const light=lightBackground(colors.bg)
   root.style.colorScheme=light?'light':'dark'
-  const brand=el('pivot-brand'),icon=brand.querySelector('img')!
+  const icon=el('pivot-brand').querySelector('img')!
   const university=school?universities.get(school):undefined
   const src=light?'/pivot-light.svg':'/pivot.svg'
   if(icon.getAttribute('src')!==src)icon.src=src
-  icon.alt=university?'Pivot':''
   const universityLogo=el<HTMLImageElement>('university-brand')
   universityLogo.hidden=!university
   if(university){
@@ -89,7 +88,6 @@ export class Appearance {
    if(universityLogo.getAttribute('src')!==logo)universityLogo.src=logo
    universityLogo.alt=school+' logo'
   }
-  brand.querySelector('b')!.hidden=!!university
   this.changed(colors,preview)
  }
 
