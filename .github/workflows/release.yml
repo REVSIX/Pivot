@@ -4,9 +4,14 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      verify_run_id:
+        description: 'Verify the installer artifact from this run ID. Leave blank to build.'
+        type: string
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   candidate:
@@ -18,6 +23,7 @@ jobs:
           node-version: '24'
           cache: npm
       - uses: actions/setup-dotnet@v4
+        if: inputs.verify_run_id == ''
         with:
           dotnet-version: '8.0.x'
       - uses: actions/setup-python@v5
@@ -30,17 +36,28 @@ jobs:
           $expected = 'v' + (Get-Content package.json -Raw | ConvertFrom-Json).version
           if ($env:GITHUB_REF_NAME -cne $expected) { throw "Expected release tag $expected" }
       - run: npm ci
+        if: inputs.verify_run_id == ''
       - run: npm test
+        if: inputs.verify_run_id == ''
       - name: Build MSI
+        if: inputs.verify_run_id == ''
         shell: pwsh
         run: ./packaging/build.ps1 -OutputDirectory "$env:RUNNER_TEMP/artifacts"
       - uses: actions/upload-artifact@v4
+        if: inputs.verify_run_id == ''
         with:
           name: pivot-windows-x64
           path: |
             ${{ runner.temp }}/artifacts/*.msi
             ${{ runner.temp }}/artifacts/*.sha256
           if-no-files-found: error
+      - uses: actions/download-artifact@v4
+        if: inputs.verify_run_id != ''
+        with:
+          name: pivot-windows-x64
+          path: ${{ runner.temp }}/artifacts
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.verify_run_id }}
       - name: Verify installation and upgrade from the latest public release
         shell: pwsh
         env:
