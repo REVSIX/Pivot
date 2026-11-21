@@ -29,6 +29,15 @@ function mix(background:string,foreground:string,amount:number){
  }).join('')
 }
 
+function lightBackground(hexColor:string){
+ const [r,g,b]=[1,3,5].map(i=>{
+  const channel=parseInt(hexColor.slice(i,i+2),16)/255
+  return channel<=.04045?channel/12.92:((channel+.055)/1.055)**2.4
+ })
+ // This is where white and black have equal contrast against the background.
+ return .2126*r+.7152*g+.0722*b>.179
+}
+
 function palette(colors:Colors):Palette{
  const bg=hex(colors.bg), panel=hex(colors.subAlt,bg), text=hex(colors.text,bg)
  const accent=hex(colors.main,bg), caret=hex(colors.caret,bg), muted=mix(hex(colors.sub,bg),text,.25)
@@ -66,12 +75,11 @@ export class Appearance {
 
  private render(colors:Palette,preview=false,school?:string){
   for(const [key,color] of Object.entries(colors))root.style.setProperty('--'+key,color)
-  const bg=colors.bg
-  const brightness=[1,3,5].reduce((sum,i)=>sum+parseInt(bg.slice(i,i+2),16),0)
-  root.style.colorScheme=brightness>430?'light':'dark'
+  const light=lightBackground(colors.bg)
+  root.style.colorScheme=light?'light':'dark'
   const brand=el('pivot-brand'),icon=brand.querySelector('img')!
   const university=school?universities.get(school):undefined
-  const src=university?'/university-logos/'+university.logo+'.svg':'/pivot.svg'
+  const src=university?'/university-logos/'+university.logo+'.svg':light?'/pivot-light.svg':'/pivot.svg'
   if(icon.getAttribute('src')!==src)icon.src=src
   icon.alt=university?school+' logo':''
   brand.toggleAttribute('data-university',!!university)
