@@ -1,6 +1,7 @@
 import {Terminal} from '@xterm/xterm'
 import {FitAddon} from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
+import './terminal-clipboard.css'
 import {button,hue,message,node} from './ui.ts'
 import type {Palette} from '../../shared/theme.ts'
 export type Session={focus:()=>void;open:(path:string)=>void;theme:(palette?:Palette)=>void;close:()=>void;runFile:()=>Promise<string>;interrupt:()=>void;moved:(from:string,to:string)=>void}
