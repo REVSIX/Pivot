@@ -26,6 +26,7 @@ export class Instrument{
   const slider=el<HTMLInputElement>('clip-'+edge)
   slider.oninput=()=>this.moveClipEdge(edge,slider.valueAsNumber)
  }
+ this.bindClipHandles()
  el('sim-menu').onclick=()=>choices('Simulation',[
   {label:this.showOrigins?'Hide body origins':'Show body origins',do:()=>{this.showOrigins=!this.showOrigins;pref('bodyOrigins',this.showOrigins);this.paint()}},
   {label:'Toggle trajectory',do:()=>{this.trace=!this.trace;pref('trajectory',this.trace);this.paint()}},
@@ -246,18 +247,50 @@ export class Instrument{
   const clip=this.clip
   if(!clip||this.exportingClip)return
   this.stopReplay()
-  if(edge==='start')clip.start=Math.min(clip.end-1,index)
-  else clip.end=Math.max(clip.start+1,index)
+  if(edge==='start')clip.start=Math.max(0,Math.min(clip.end-1,index))
+  else clip.end=Math.min(clip.capture.frames.length-1,Math.max(clip.start+1,index))
   this.index=clip[edge]
   this.paint()
+ }
+ private bindClipHandles(){
+  const track=el('clip-handles')
+  let drag:{id:number;edge:'start'|'end';offset:number}|undefined
+  // Both handles share a track, so pick the closest one independently of stacking order.
+  const position=(x:number,clip:Clip)=>{
+   const bounds=track.getBoundingClientRect()
+   const ratio=(x-bounds.left-6)/Math.max(1,bounds.width-12)
+   return ratio*(clip.capture.frames.length-1)
+  }
+  track.onpointerdown=event=>{
+   const clip=this.clip
+   if(!clip||this.exportingClip||event.button!==0||drag)return
+   const at=position(event.clientX,clip)
+   const edge=at<=(clip.start+clip.end)/2?'start':'end'
+   const distance=at-clip[edge]
+   const near=Math.abs(distance)*(track.clientWidth-12)/(clip.capture.frames.length-1)<8
+   event.preventDefault()
+   track.setPointerCapture(event.pointerId)
+   drag={id:event.pointerId,edge,offset:near?distance:0}
+   if(!near)this.moveClipEdge(edge,Math.round(at))
+  }
+  track.onpointermove=event=>{
+   if(drag?.id===event.pointerId&&this.clip)
+    this.moveClipEdge(drag.edge,Math.round(position(event.clientX,this.clip)-drag.offset))
+  }
+  track.onlostpointercapture=()=>{drag=undefined}
  }
  private cancelClip(){
   this.clip=undefined;this.stopReplay();this.paint()
  }
  private paintClip(){
   const clip=this.clip
-  el('clip-handles').hidden=el('clip-actions').hidden=!clip
+  const track=el('clip-handles')
+  track.hidden=el('clip-actions').hidden=!clip
   if(!clip)return
+  const theme=getComputedStyle(document.documentElement)
+  const color=(name:string)=>theme.getPropertyValue('--'+name).trim().toLowerCase()
+  const accent=color('accent')
+  track.toggleAttribute('data-shared-color',accent===color('text')||accent===color('bg'))
   const frames=clip.capture.frames
   const time=(index:number)=>frames[index].t.toFixed(3)+' s'
   el('clip-times').textContent=time(clip.start)+' – '+time(clip.end)

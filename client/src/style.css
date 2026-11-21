@@ -93,12 +93,12 @@ dialog:has(.split-diff){width:min(1160px,96vw);max-height:89vh}
 :root[data-sim-fullscreen] #sim-fullscreen span{display:inline;white-space:nowrap}
 
 .simulation-timeline{display:flex;align-items:center;position:relative;align-self:stretch;flex:1;min-width:40px}
-#clip-handles{position:absolute;inset:0 0 auto;height:24px;pointer-events:none}
-#clip-handles input{position:absolute;left:0;width:100%;height:12px;margin:0;background:transparent;pointer-events:none}
-#clip-start{top:0}
-#clip-end{top:12px}
-#clip-handles input::-webkit-slider-thumb{width:12px;height:12px;border:1px solid var(--bg);background:var(--green);cursor:ew-resize;pointer-events:auto}
-#clip-handles #clip-end::-webkit-slider-thumb{background:var(--accent)}
+#clip-handles{position:absolute;inset:3px 0 auto;height:16px;cursor:ew-resize;touch-action:none}
+#clip-handles input{position:absolute;inset:0;width:100%;height:16px;margin:0;background:transparent;pointer-events:none}
+#clip-start{--clip-marker:var(--green)}
+#clip-end{--clip-marker:var(--danger)}
+#clip-handles[data-shared-color] input{--clip-marker:var(--text)}
+#clip-handles input::-webkit-slider-thumb{width:12px;height:12px;border:1px solid var(--bg);background:var(--clip-marker)}
 .simulation-timeline:has(#clip-handles:not([hidden])) #timeline{align-self:end;margin-bottom:6px}
 #clip-handles input:focus-visible::-webkit-slider-thumb{outline:2px solid var(--text)}
 #clip-actions{position:absolute;z-index:2;right:10px;top:10px;display:flex;align-items:center;gap:8px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:4px;font:11px var(--mono)}
