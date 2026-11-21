@@ -128,8 +128,10 @@ export function liveSimulationRoutes(root:string,host:()=>string,token:string){
   router.post('/sim/external/frame',(req,res)=>{
     const s=externalState();if(!s||s.id!==req.body?.id)throw new Fault('Python simulation session closed.',410)
     s.last=Date.now();if(s.reset){s.capture.frames=[];s.offset=0}
-    s.capture.frames.push(req.body.frame as Frame)
-    const extra=s.capture.frames.length-HISTORY;if(extra>0){s.capture.frames.splice(0,extra);s.offset+=extra}
+    if(!s.paused&&!s.stop){
+      s.capture.frames.push(req.body.frame as Frame)
+      const extra=s.capture.frames.length-HISTORY;if(extra>0){s.capture.frames.splice(0,extra);s.offset+=extra}
+    }
     res.json({paused:s.paused,reset:s.reset,stop:s.stop});s.reset=false
   })
   router.post('/sim/external/close',(req,res)=>{const s=external;if(s && s.id===req.body?.id)s.stop=true;res.json({closed:true})})

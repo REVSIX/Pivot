@@ -37,7 +37,7 @@ Press **Ctrl+Shift+P** to open the command palette. Type to filter, use **↑/�
 | Open a project | **Open project folder** → **Browse computer** in the Windows app. Pivot remembers your last folder. |
 | Find or edit a file | **Find file in project** or the Explorer. **Focus LazyVim fullscreen** gives the editor the whole workspace. |
 | Switch to the terminal | **Open existing terminal** or **New terminal**. Each terminal keeps its own state and history. |
-| Run the active saved buffer | **Run current file**. Python, JavaScript, shell, and PowerShell output appear in the integrated terminal. **Stop terminal (Ctrl+C)** interrupts its foreground job. |
+| Run the active saved buffer | **Run current file**. Python, JavaScript, shell, and PowerShell output appear in the integrated terminal. **Stop** interrupts the selected terminal and pauses simulation while keeping the recorded frames available for replay. |
 | Review a patch | **Show source control sidebar**. Select a changed file to compare both versions. Stage files, commit, or find branch and remote commands from the palette. |
 | Preview or run a model | **Select MJCF model** to inspect its initial pose. **Run simulation** starts physics and playback. Pause, step, and reset affect the simulation session. |
 | Inspect body origins | **Simulation options → Show body origins** adds bearing-shaped markers. The default view shows the model geometry without those overlays. |

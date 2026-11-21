@@ -9,6 +9,7 @@ export class Instrument{
  project?:Project;file='';capture?:Capture;index=0;liveId='';cursor=-1;offset=0;state='Reference';camera=createCamera(readPref('projection','3d'));trace=readPref('trajectory',false);showOrigins=readPref('bodyOrigins',false)
  debug=new DebugView(i=>run(()=>this.seek(i)));private generation=0;private timer=0;private replayTimer=0;private replaying=false;private polling=false;private locked=false;private following=true;private external=false
  private previewRequest?:AbortController
+ private pendingStop=false
  constructor(){bindCamera(el<HTMLCanvasElement>('scene'),this.camera,()=>this.paint());new ResizeObserver(()=>this.paint()).observe(el('scene'))
  for(const b of document.querySelectorAll<HTMLButtonElement>('[data-projection]'))b.onclick=()=>{this.camera.mode=b.dataset.projection as '2d'|'3d';pref('projection',this.camera.mode);this.paint()}
  el('pick-model').onclick=()=>this.models()
@@ -45,7 +46,7 @@ export class Instrument{
   this.info();this.paint()
   if(this.file&&!this.capture)void this.loadPreview(p,this.file,generation)
  }
- async release(){const generation=++this.generation;this.previewRequest?.abort();this.previewRequest=undefined;clearInterval(this.timer);this.stopReplay();const id=this.liveId;this.liveId='';this.cursor=-1;this.offset=0;this.following=true;this.external=false;if(id)await api('sim/'+id+'/action',{action:'close'}).catch(()=>{});return generation}
+ async release(){const generation=++this.generation;this.pendingStop=false;this.previewRequest?.abort();this.previewRequest=undefined;clearInterval(this.timer);this.stopReplay();const id=this.liveId;this.liveId='';this.cursor=-1;this.offset=0;this.following=true;this.external=false;if(id)await api('sim/'+id+'/action',{action:'close'}).catch(()=>{});return generation}
  private async attachExternal(){
   if(!this.project||!this.sessionToken||this.liveId||this.locked||this.previewRequest)return
   const generation=this.generation
@@ -56,6 +57,16 @@ export class Instrument{
   }catch{}
  }
  private stopReplay(){clearInterval(this.replayTimer);this.replaying=false}
+ async stop(){
+  const replaying=this.replaying
+  this.stopReplay()
+  if(replaying)this.paint()
+  if(!this.liveId&&!this.locked)await this.attachExternal()
+  if(this.locked){this.pendingStop=true;return true}
+  if(!this.liveId)return replaying
+  if(this.state==='Running')await this.act('pause')
+  return true
+ }
  private transport(){
   if(this.replaying){this.stopReplay();this.paint();return}
   if(this.state==='Running')return this.act('pause')
@@ -134,8 +145,12 @@ export class Instrument{
  if(!this.liveId){if(action==='pause')return
  const opened=await api<{id:string;capture:Capture;cursor:number;offset:number;state:string}>('sim/open',{folder:this.project.folder,file:this.file});if(this.generation!==gen){await api('sim/'+opened.id+'/action',{action:'close'}).catch(()=>{});return}
  this.liveId=opened.id;this.capture=opened.capture;this.cursor=opened.cursor;this.offset=opened.offset;this.index=this.capture.frames.length-1;this.state='Paused';this.info();this.debug.log('MuJoCo loaded '+this.file);this.pollLoop()}
- this.stopReplay();this.following=true;const result=await api<Update>('sim/'+this.liveId+'/action',{action,after:this.cursor,speed:Number(el<HTMLSelectElement>('speed').value)});if(gen!==this.generation)return;this.accept(result,action==='reset');this.debug.log('Simulation '+action+' · '+(this.capture?.frames[this.index]?.t??0).toFixed(3)+' s')
- }catch(e){report(e);this.debug.log(String(e));if(this.liveId){await this.release();this.state='Stopped';this.paint()}}finally{this.locked=false;this.paintTransport()}}
+ if(this.pendingStop&&action==='play'){this.pendingStop=false;action='pause'}
+ this.stopReplay();if(action!=='pause')this.following=true;const result=await api<Update>('sim/'+this.liveId+'/action',{action,after:this.cursor,speed:Number(el<HTMLSelectElement>('speed').value)});if(gen!==this.generation)return;this.accept(result,action==='reset');this.debug.log('Simulation '+action+' · '+(this.capture?.frames[this.index]?.t??0).toFixed(3)+' s')
+ }catch(e){report(e);this.debug.log(String(e));if(this.liveId){await this.release();this.state='Stopped';this.paint()}}finally{
+  this.locked=false;this.paintTransport()
+  if(this.pendingStop){this.pendingStop=false;if(this.state==='Running')await this.act('pause')}
+ }}
  private pollLoop(){clearInterval(this.timer);this.timer=window.setInterval(()=>void this.poll(),50)}
  private lastPoll=0
  private async poll(){if(!this.liveId||this.locked||this.polling||document.hidden)return;if(this.state!=='Running'&&performance.now()-this.lastPoll<20000)return
