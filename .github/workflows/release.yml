@@ -20,6 +20,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Validate release tag
         if: github.ref_type == 'tag'
         shell: pwsh
@@ -38,19 +41,11 @@ jobs:
             ${{ runner.temp }}/artifacts/*.msi
             ${{ runner.temp }}/artifacts/*.sha256
           if-no-files-found: error
-      - name: Install and verify bundled runtime
+      - name: Verify installation and upgrade from the latest public release
         shell: pwsh
-        run: |
-          $msi = (Get-ChildItem "$env:RUNNER_TEMP/artifacts/*.msi").FullName
-          $p = Start-Process msiexec.exe -ArgumentList @('/i',('"' + $msi + '"'),'/quiet','/norestart') -Wait -PassThru -WindowStyle Hidden
-          if ($p.ExitCode -ne 0) { throw "MSI installation failed ($($p.ExitCode))" }
-          try {
-            node packaging/smoke-service.mjs "$env:LOCALAPPDATA/Programs/Pivot"
-            if ($LASTEXITCODE -ne 0) { throw 'Installed runtime smoke test failed' }
-          } finally {
-            $p = Start-Process msiexec.exe -ArgumentList @('/x',('"' + $msi + '"'),'/quiet','/norestart') -Wait -PassThru -WindowStyle Hidden
-            if ($p.ExitCode -ne 0) { throw "MSI uninstall failed ($($p.ExitCode))" }
-          }
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./packaging/verify-upgrade.ps1 -Installer (Get-ChildItem "$env:RUNNER_TEMP/artifacts/*.msi").FullName
 
   draft:
     needs: candidate

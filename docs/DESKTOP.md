@@ -4,9 +4,15 @@ The per-user Windows x64 MSI installs into `%LOCALAPPDATA%\Programs\Pivot`. Laun
 
 The first desktop launch copies the included pendulum project to `%LOCALAPPDATA%\Pivot\user\projects\pendulum`. When Git is available, Pivot initializes and commits this new copy. Your project files and preferences stay in your user profile across upgrades. Use **Open folder** to choose another trusted workspace. The native picker restarts the local service for the chosen root. Save edits and exit running jobs before switching roots. The shell persists the root, localhost port and maximized state. The web UI persists its preferences in the WebView2 profile.
 
+## Update Pivot
+
+1. Save your editor buffers. Export any simulation clips or telemetry you want to keep, then close every Pivot window.
+2. Download the new Windows x64 MSI from the [latest release](https://github.com/REVSIX/Pivot/releases/latest). Run it under the same Windows account you used to install Pivot. Windows Installer replaces the older app in place.
+3. Open **Pivot** from Start. The last workspace and theme carry over. The update keeps the existing Python environment, so an already configured simulation and MCAP setup can be used again.
+
 ## Install and configure
 
-1. Download the `Pivot-…-windows-x64.msi` and its matching `.sha256` file from the release. In PowerShell, run `Get-FileHash -Algorithm SHA256 .\Pivot-0.3.0-windows-x64.msi`, substituting your downloaded filename. Compare the hash with the first field in the checksum file. Run the MSI, then open **Pivot** from Start. The build is unsigned, so Windows may show an unrecognized publisher.
+1. Download the `Pivot-…-windows-x64.msi` and its matching `.sha256` file from the release. In PowerShell, run `Get-FileHash -Algorithm SHA256 .\Pivot-0.4.0-windows-x64.msi`, substituting your downloaded filename. Compare the hash with the first field in the checksum file. Run the MSI, then open **Pivot** from Start. The build is unsigned, so Windows may show an unrecognized publisher.
 2. Install Git for Windows for local Git operations. Include ripgrep on PATH for fast search in LazyVim. Private operations can use your existing Git credential manager or SSH setup.
 3. For live MuJoCo and MCAP export, install CPython 3.12 with the Python launcher, or install uv. Run the following in PowerShell from a terminal.
 

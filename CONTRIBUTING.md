@@ -20,7 +20,7 @@ Keep changes scoped, exercise the feature through its usual entry point, and doc
 
 Pivot uses `vMAJOR.MINOR.PATCH` Git tags. Update the version in `package.json`, `package-lock.json`, and the native host version metadata in `desktop/Pivot.cs` and `desktop/app.manifest` before tagging the release commit. Push a matching tag such as `v0.3.0`.
 
-GitHub Actions builds the Windows x64 MSI, installs it, checks that the bundled runtime serves the UI and accepts a workspace, and creates a draft release with the installer and its SHA-256 checksum. Before publishing, launch the desktop app on an interactive Windows session and check that the workbench opens and restores a project on relaunch. Run the **Windows release** workflow manually to try the installer build before tagging. See the [Windows build instructions](docs/DESKTOP.md) to run the same build locally.
+GitHub Actions builds the Windows x64 MSI, upgrades the latest public installer when one is available, checks that the workspace and Python environment survive, and runs a live MuJoCo step. The tag workflow creates a draft with the installer and its SHA-256 checksum. Before publishing, check the desktop in an interactive Windows session. You can pass the old and new binaries to `node packaging/smoke.mjs <old Pivot.exe> <new Pivot.exe>` to verify that the same profile restores its workspace and theme. Run the **Windows release** workflow manually to try the installer build before tagging. See the [Windows build instructions](docs/DESKTOP.md) to run the build locally.
 
 ## Add README GIFs
 

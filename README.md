@@ -11,6 +11,10 @@ Pivot is a local-first robotics IDE for editing a controller in LazyVim, running
 
 <!-- Add the main workspace GIF here. Suggested path: docs/media/workspace.gif -->
 
+## Update an existing installation
+
+Save your work, close Pivot, and run the newer Windows x64 MSI from the [latest release](https://github.com/REVSIX/Pivot/releases/latest). Open **Pivot** again from the Start menu. The installer upgrades the existing copy in place. Your projects, last workspace, and theme stay in your user profile. See [Windows upgrade steps](docs/DESKTOP.md#update-pivot).
+
 ## Quick start
 
 1. Download the `Pivot-…-windows-x64.msi` file under **Assets** in the [latest release](https://github.com/REVSIX/Pivot/releases/latest). Run it and open **Pivot** from the Start menu. The installer bundles Node, Neovim, and the pinned LazyVim plugins. Windows 10/11 x64 requires .NET Framework 4.8 and Microsoft Edge WebView2 Evergreen. The installer is unsigned.
@@ -37,13 +41,14 @@ Press **Ctrl+Shift+P** to open the command palette. Type to filter, use **↑/�
 | Open a project | **Open project folder** → **Browse computer** in the Windows app. Pivot remembers your last folder. |
 | Find or edit a file | **Find file in project** or the Explorer. **Focus LazyVim fullscreen** gives the editor the whole workspace. |
 | Switch to the terminal | **Open existing terminal** or **New terminal**. Each terminal keeps its own state and history. |
+| Copy or paste terminal text | Right-click for **Copy**, **Paste**, and **Select all**, or use **Ctrl+Shift+C** and **Ctrl+Shift+V**. |
 | Run the active saved buffer | **Run current file**. Python, JavaScript, shell, and PowerShell output appear in the integrated terminal. **Stop** interrupts the selected terminal and pauses simulation while keeping the recorded frames available for replay. |
 | Review a patch | **Show source control sidebar**. Select a changed file to compare both versions. Stage files, commit, or find branch and remote commands from the palette. |
-| Preview or run a model | **Select MJCF model** to inspect its initial pose. **Run simulation** starts physics and playback. Pause, step, and reset affect the simulation session. |
+| Preview or run a model | **Select MJCF model**, or click an MJCF in Explorer while in Simulation, to inspect its initial pose. **Run simulation** starts physics and playback. The fullscreen button fills the display. Move the pointer to show its controls and press **Esc** to exit. |
 | Inspect body origins | **Simulation options → Show body origins** adds bearing-shaped markers. The default view shows the model geometry without those overlays. |
 | Plot or export data | **Select debug channels**, **Export CSV**, and **Export telemetry as MCAP**. CSV can export a simulation capture or SDK telemetry. MCAP exports SDK telemetry. |
 | Share a simulation clip | Use the download icon next to **Reset camera** for JPEG, MP4, or GIF. Drag the range ticks, play the loop to review it, then confirm the export in the viewport. |
-| Change the look | Type **Theme**, then press **Enter**. Browse to preview and press **Enter** to apply. Use **Panel translucency (%)** and **Workspace background** to adjust the layout’s appearance. |
+| Change the look | Type **Theme**, then press **Enter**. The picker opens at your active theme. Browse to preview and press **Enter** to apply. University themes are after Monkeytype. The footer shows the active theme. |
 | Run a build or inspect a device | Search for **Task** to run a project task. **Serial Monitor** uses PlatformIO Core when installed and configured. |
 
 ## LazyVim essentials

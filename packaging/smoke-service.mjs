@@ -7,9 +7,9 @@ import path from 'node:path'
 import { createInterface } from 'node:readline'
 import { setTimeout as wait } from 'node:timers/promises'
 
-const install = process.argv[2]
+const [install, upgradeWorkspace] = process.argv.slice(2)
 if (!install) throw new Error('Usage: node packaging/smoke-service.mjs <installed Pivot directory>')
-const root = await mkdtemp(path.join(os.tmpdir(), 'pivot-service-smoke-'))
+const root = upgradeWorkspace ?? await mkdtemp(path.join(os.tmpdir(), 'pivot-service-smoke-'))
 const service = spawn(path.join(install, 'node.exe'), ['desktop/service.ts', root, '0'], {
   cwd: path.join(install, 'app'),
   stdio: ['pipe', 'pipe', 'inherit'],
@@ -41,6 +41,23 @@ try {
     headers: { 'X-Pivot-Token': token },
   })).json()
   assert.equal(project.rootName, path.basename(root))
+  if (upgradeWorkspace) {
+    const request = async (route, body) => {
+      const result = await fetch(origin + '/api/' + route, {
+        method: 'POST',
+        headers: { 'X-Pivot-Token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await result.json()
+      assert.ok(result.ok, JSON.stringify(data))
+      return data
+    }
+    const opened = await request('sim/open', { folder: '.', file: '@cart-pole' })
+    const step = await request('sim/' + opened.id + '/action', { action: 'step' })
+    assert.ok(step.frames.at(-1).t > 0)
+    await request('sim/' + opened.id + '/action', { action: 'close' })
+    console.log('Live MuJoCo loaded and advanced with the installed Python environment.')
+  }
   service.stdin.write('stop\n')
   assert.equal(await Promise.race([exited.then(([code]) => code), wait(10000, null, { ref: false })]), 0)
   await assert.rejects(fetch(origin + '/api/session', { signal: AbortSignal.timeout(5000) }))

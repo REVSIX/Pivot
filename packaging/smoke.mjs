@@ -8,8 +8,8 @@ import os from 'node:os'
 import path from 'node:path'
 import {setTimeout as wait} from 'node:timers/promises'
 
-const exe=process.argv[2]
-if(!exe) throw new Error('Usage: node packaging/smoke.mjs <installed Pivot.exe>')
+const [exe,nextExe]=process.argv.slice(2)
+if(!exe) throw new Error('Usage: node packaging/smoke.mjs <installed Pivot.exe> [new Pivot.exe]')
 const scratch=await mkdtemp(path.join(os.tmpdir(),'pivot-desktop-smoke-'))
 const profile=path.join(scratch,'profile'), root=path.join(scratch,'robot project')
 await mkdir(root)
@@ -33,9 +33,9 @@ async function pageTarget(child) {
   }
   throw new Error('Desktop did not load the workbench.')
 }
-async function session(args) {
+async function session(args,upgraded=false) {
   const t0=performance.now()
-  const child=spawn(exe,args,{
+  const child=spawn(upgraded?nextExe:exe,args,{
     env:{...process.env,PIVOT_DESKTOP_PROFILE:profile,WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:'--remote-debugging-port='+debugPort},
     stdio:'ignore',
   })
@@ -70,6 +70,16 @@ async function session(args) {
     const visible=await evaluate('document.body.innerText')
     assert.match(visible,/simulation/i)
     assert.match(visible,/pivot/i)
+    if(nextExe&&!upgraded){
+      await evaluate("localStorage.setItem('pivot.theme',JSON.stringify('nord'));true")
+    } else if(upgraded){
+      for(let attempt=0;attempt<30;attempt++){
+        if(await evaluate("document.getElementById('active-theme')?.textContent==='Nord'"))break
+        await wait(100)
+      }
+      assert.equal(await evaluate("document.getElementById('active-theme').textContent"),'Nord')
+      console.log('The upgraded desktop applied the previous theme.')
+    }
     console.log('Workbench loaded in '+Math.round(performance.now()-t0)+' ms at '+origin)
     // The test workspace is empty. It is safe to close without interactive unsaved-session prompts.
     await evaluate("window.addEventListener('beforeunload', e=>e.stopImmediatePropagation(), true);window.chrome.webview.postMessage('close');true")
@@ -85,7 +95,7 @@ async function session(args) {
   }
 }
 const first=await session(['--root',root])
-const second=await session([])
+const second=await session([],!!nextExe)
 assert.equal(first,second)
 assert.ok((await readFile(path.join(profile,'window.xml'),'utf8')).includes(root))
 console.log('Desktop launch, service shutdown, origin and project restoration passed.')
