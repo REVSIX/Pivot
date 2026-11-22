@@ -64,7 +64,7 @@ For completion, definitions, and diagnostics, install the language server for yo
 3. Use `ide_telem.log("tracking_error", error, unit="rad", timestamp=data.time)` in Python to send a named signal to Debug. Sample at a frequency appropriate for plots and call `ide_telem.flush()` before your script exits.
 4. Use **Export CSV** or **Export telemetry as MCAP** to take the data into other tools. For repeatable terminal commands, put named tasks in `.pivot-tasks.json` or `package.json`.
 
-<!-- Add a simulation and telemetry GIF here. Suggested path: docs/media/simulation.gif -->
+<img width="540" height="204" alt="train" src="https://github.com/user-attachments/assets/4be98be4-e257-4d53-9cf3-292ac6d4788d" />
 
 ### Example code to learn from
 
