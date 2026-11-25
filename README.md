@@ -55,6 +55,8 @@ Press **Ctrl+Shift+P** to open the command palette. Type to filter, use **â†‘/â†
 
 Start with **Esc** for Normal mode, **i** to type, **:w** to save, **u** to undo, and **Space** to discover commands. Use **Space f f** to find files, **Space s g** to search project text, and **Shift+h / Shift+l** to switch buffers. See the [Pivot LazyVim cheat sheet](docs/LAZYVIM.md) and the [official LazyVim keymaps](https://www.lazyvim.org/keymaps).
 
+The bundled LazyVim profile shows indent guides by default. The guides follow the active Pivot theme, and the current scope uses its accent color.
+
 For completion, definitions, and diagnostics, install the language server for your project and put it on PATH before launching Pivot. The bundled profile detects `clangd`, `pyright-langserver`, and `lua-language-server`. For C and C++, configure `compile_commands.json` so clangd sees your actual compiler flags and headers. Use `:LspInfo` to check which server attached to the buffer.
 
 ## Run your own robotics project
