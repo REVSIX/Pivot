@@ -53,8 +53,8 @@ dialog:has(.choice.selected[data-preview])::backdrop{background:#080a1233}
 .snake-board{display:block;max-width:100%;margin:8px 0;border:1px solid var(--line)}
 
 .shell-instance{display:flex;flex-direction:column}
-.shell-screen{flex:1;min-height:0}
-.shell-exit{color:var(--muted);font:10px var(--mono);padding:4px 7px;border-top:1px solid var(--line)}
+.shell-screen{position:relative;flex:1;min-height:0;overflow:hidden}
+.shell-exit{flex:none;color:var(--muted);font:10px/1.4 var(--mono);padding:4px 7px;border-top:1px solid var(--line)}
 dialog:has(.split-diff){width:min(1160px,96vw);max-height:89vh}
 #dialog-content:has(.split-diff){padding:0;max-height:78vh}
 .diff-modes{display:flex;gap:6px;padding:9px 12px;border-bottom:1px solid var(--line)}

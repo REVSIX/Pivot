@@ -5,7 +5,7 @@ import './terminal-clipboard.css'
 import {button,hue,message,node} from './ui.ts'
 import type {Palette} from '../../shared/theme.ts'
 export type Session={focus:()=>void;open:(path:string)=>void;theme:(palette?:Palette)=>void;close:()=>void;runFile:()=>Promise<string>;interrupt:()=>void;moved:(from:string,to:string)=>void}
-export function launch(host:HTMLElement,token:string,folder:string,kind:'editor'|'terminal',options:{file?:string;profile?:string;shell?:string;task?:string;runFile?:string},onExit:(message:string)=>void,onReady:()=>void):Session{
+export function launch(host:HTMLElement,token:string,folder:string,kind:'editor'|'terminal',options:{file?:string;profile?:string;shell?:string;task?:string;runFile?:string;embedded?:string;args?:string},onExit:(message:string)=>void,onReady:()=>void):Session{
  const colors=()=>({background:hue('panel'),foreground:hue('text'),cursor:hue('accent'),selectionBackground:hue('sel'),black:hue('bg'),brightBlack:hue('muted'),yellow:hue('accent'),magenta:hue('trace-a'),cyan:hue('trace-b'),green:hue('green')})
  const term=new Terminal({fontFamily:'"JetBrainsMono Nerd Font Mono", "CaskaydiaCove Nerd Font Mono", "IBM Plex Mono", Consolas, monospace',fontSize:12,lineHeight:1.12,scrollback:kind==='terminal'?2000:400,theme:colors()})
  const fit=new FitAddon();term.loadAddon(fit);term.open(host)

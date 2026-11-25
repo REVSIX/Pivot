@@ -24,6 +24,16 @@ Opening another file uses Neovim's local RPC server to edit the file in the exis
 
 Native Windows terminal sessions start PowerShell with a clean profile in the project folder. Each terminal has independent history, process state, and scrollback. The terminal environment includes the telemetry SDK, the selected Python interpreter, and the `telem` CLI. On Windows, WSL uses the default installed Linux distribution and maps the Windows working directory with `wsl.exe --cd`. Linux tools and Python packages come from the selected distribution. The Windows telemetry environment is configured for native terminals. [WSL commands](https://learn.microsoft.com/en-us/windows/wsl/basic-commands)
 
+## Embedded Python runs
+
+1. Clone and open the project folder. Set up its dependencies as usual. Pivot looks for the project’s `.venv` first, then its configured Python, then Python on PATH. The script starts in the project folder, with its own directory available for imports.
+2. Open the saved Python entry script and click **Run file**, or choose **Ctrl+Shift+P → Run current file** from any view. The run stays active as you switch between Code, Debug, Simulation, and Split. To pass command-line arguments, choose **Run in Embedded Viewer with arguments** and enter a JSON array such as `["--model", "models/arm.xml", "--seed", "42"]`.
+3. The script steps the physics and sends a snapshot when it calls `viewer.sync()`. Pause freezes the displayed stream and recording. **Stop** interrupts the Python process and keeps captured frames available for replay. For model-only physics, use **Run simulation from MJCF model** in the palette.
+
+Pivot embeds `mujoco.viewer.launch_passive()` and the earlier `pivot_viewer.launch_passive()` helper. Regular Python scripts can use **Run file** without installing MuJoCo. To use native viewer keyboard callbacks, camera settings, or custom rendering overlays, launch the script directly from a terminal. Embedded rendering follows Pivot's existing geometry support.
+
+Debug lists up to 48 automatic channels per model under `MuJoCo/`, using simulation time. Set `PIVOT_SIM_HZ` in Pivot’s environment to change the maximum snapshot rate from 20 Hz (range 1–60). `PIVOT_TELEMETRY_OFF=1` disables Debug telemetry while leaving the embedded viewer available. Log application values like controller error, reward, or target position explicitly with `ide_telem.log()`.
+
 ## Project tasks
 
 Available npm scripts are offered by name. A Dockerfile makes a build task available and a Compose configuration makes a Compose task available if the Docker client is installed. The user starts every task explicitly. A Docker daemon must be running when executing Docker tasks. Release scripts are regular project tasks and execute only when selected.

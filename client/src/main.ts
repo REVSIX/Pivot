@@ -8,10 +8,11 @@ import {Appearance} from './appearance.ts'
 import {Explorer} from './explorer.ts'
 import type {Project} from './model.ts'
 import type {Session} from './editor.ts'
+const isPython=(file:string)=>/\.py$/i.test(file)
 const instrument=new Instrument()
 let project:Project|undefined,explorer:Explorer|undefined,editor:Session|undefined
 let selected='',epoch=0,refreshTimer=0,editorLoading=false,shellSequence=0,activeShell=0
-type Shell={id:number;label:string;host:HTMLElement;session?:Session;ended:boolean;runFile?:string}
+type Shell={id:number;label:string;host:HTMLElement;session?:Session;ended:boolean;runFile?:string;embedded?:string}
 const shells:Shell[]=[]
 let editorThemeTimer=0
 let refreshPaletteCatalog=()=>{}
@@ -25,30 +26,32 @@ const appearance=new Appearance((colors,preview)=>{
 })
 function shellTabs(){const bar=el('shell-tabs');bar.replaceChildren();for(const sh of shells){const b=button(sh.label,()=>activateShell(sh.id),sh.id===activeShell?'active':'');bar.append(b);sh.host.hidden=sh.id!==activeShell};if(!shells.length){const note=node('div','','shell-placeholder');note.append(button('Open terminal',()=>newShell(),'plain-action'));el('shell-hosts').replaceChildren(note)}el<HTMLButtonElement>('close-shell').disabled=!shells.length}
 function activateShell(id:number){activeShell=id;shellTabs();shells.find(x=>x.id===id)?.session?.focus()}
-async function newShell({task,shell='native',focus=true,runFile}:{
- task?:string;shell?:'native'|'wsl'|'serial';focus?:boolean;runFile?:string
+async function newShell({task,shell='native',focus=true,runFile,embedded,args}:{
+ task?:string;shell?:'native'|'wsl'|'serial';focus?:boolean;runFile?:string;embedded?:string;args?:string
 }={}){
  if(!project)return
  const gen=epoch,folder=project.folder,{launch}=await import('./editor.ts');if(gen!==epoch)return
  if(runFile)for(const entry of shells.filter(s=>s.runFile&&s.ended))removeShell(entry.id)
  if(shells.length>=4){message('Close a terminal before opening another.');return}
+ if(embedded)instrument.prepareEmbedded(embedded)
  if(focus)showShell()
  const id=++shellSequence,host=node('div','','shell-instance'),screen=node('div','','shell-screen')
  const label=runFile?'Run · '+runFile.split('/').at(-1):task?task.split(':').at(-1)!:shell==='wsl'?'WSL':shell==='serial'?'Serial Monitor':'Shell '+id
  host.append(screen)
  el('shell-hosts').querySelector('.shell-placeholder')?.remove();el('shell-hosts').append(host)
- const sh:Shell={id,label,host,ended:false,runFile};shells.push(sh);activeShell=id;shellTabs()
- sh.session=launch(screen,token,folder,'terminal',{shell,task,runFile},reason=>{
+ const sh:Shell={id,label,host,ended:false,runFile,embedded};shells.push(sh);activeShell=id;shellTabs()
+ sh.session=launch(screen,token,folder,'terminal',{shell,task,runFile,embedded,args},reason=>{
   sh.ended=true
   host.append(node('p',reason,'shell-exit'))
+  if(embedded)void instrument.finishEmbedded(embedded)
   instrument.debug.log(label+' · '+reason)
   if(gen===epoch)refreshSoon()
  },()=>{if(focus&&gen===epoch&&activeShell===id&&host.getClientRects().length&&!dialog.open)sh.session?.focus()})
 }
-function removeShell(id:number){const i=shells.findIndex(s=>s.id===id);if(i<0)return;const sh=shells.splice(i,1)[0];sh.session?.close();sh.host.remove();activeShell=shells.at(-1)?.id||0;shellTabs()}
+function removeShell(id:number){const i=shells.findIndex(s=>s.id===id);if(i<0)return;const sh=shells.splice(i,1)[0];sh.session?.close();if(sh.embedded)void instrument.finishEmbedded(sh.embedded);sh.host.remove();activeShell=shells.at(-1)?.id||0;shellTabs()}
 function closeShell(){const sh=shells.find(s=>s.id===activeShell);if(!sh)return;if(sh.ended){removeShell(sh.id);return}confirmAction('Close terminal','End '+sh.label+' and any process running in it?','Close terminal',()=>removeShell(sh.id))}
 function refreshSoon(){clearTimeout(refreshTimer);refreshTimer=window.setTimeout(()=>{if(explorer)run(()=>explorer!.refresh())},650)}
-function showSelected(){explorer?.select(selected)}
+function showSelected(){explorer?.select(selected);updateRunButton()}
 function fileMoved(from:string,to:string){
  if(!project)return
  editor?.moved(from,to)
@@ -76,20 +79,26 @@ function showSidebar(view:'explorer'|'git',force=false){
  sidebar(force||!same||maximized)
 }
 let readingRunFile=false
-async function runCurrentFile(){
+async function runCurrentFile(embeddedArgs?:string[]){
  const session=editor
  if(!session){message('Open a file in LazyVim first.');return}
  const running=shells.find(shell=>shell.runFile&&!shell.ended)
- if(running){showShell();activateShell(running.id);message('A file run is already active.');return}
+ if(running){if(current==='code'||current==='split'){showShell();activateShell(running.id)}message('A file run is already active.');return}
  if(readingRunFile)return
  readingRunFile=true
  try{
   const runFile=await session.runFile()
-  if(editor===session)await newShell({runFile})
+  if(editor!==session)return
+  if(embeddedArgs&&!isPython(runFile)){message('Open a Python script to run in the embedded viewer.');return}
+  await newShell({
+   runFile,focus:current==='code'||current==='split',
+   ...(isPython(runFile)?{embedded:crypto.randomUUID(),args:JSON.stringify(embeddedArgs??[])}:{}),
+  })
  }finally{readingRunFile=false}
 }
 async function stopRun(){
- const terminal=shells.find(shell=>shell.id===activeShell&&!shell.ended)
+ const terminal=shells.find(shell=>shell.embedded&&!shell.ended)
+  ??shells.find(shell=>shell.id===activeShell&&!shell.ended)
  const simulation=instrument.stop()
  if(terminal?.session)terminal.session.interrupt()
  if(!await simulation&&!terminal?.session)message('No active simulation or selected terminal.')
@@ -168,6 +177,12 @@ function palette(){
   {label:'Git branches and remote operations',do:()=>explorer?.gitMenu()},
   {label:'Refresh explorer and Git status',do:()=>explorer?.refresh()},
   {label:'Run current file',do:runCurrentFile},
+  {label:'Run in Embedded Viewer',do:()=>runCurrentFile([])},
+  {label:'Run in Embedded Viewer with arguments',do:()=>promptText('Run in Embedded Viewer','Script arguments as a JSON array of strings','[]',input=>{
+   const args:unknown=JSON.parse(input)
+   if(!Array.isArray(args)||args.some(arg=>typeof arg!=='string'))throw new Error('Enter a JSON array of strings, e.g. ["--steps","500"].')
+   return runCurrentFile(args)
+  })},
   {label:'Stop simulation and send Ctrl+C to terminal',do:stopRun},
   {label:'New terminal',do:()=>newShell()},
   {label:'Serial Monitor',do:()=>newShell({shell:'serial'})},
@@ -176,7 +191,7 @@ function palette(){
   {label:'Open existing terminal',do:focusTerminal},
   {label:'Show source control sidebar',do:()=>showSidebar('git',true)},
   {label:'Select MJCF model',do:()=>instrument.models()},
-  {label:'Run simulation',do:()=>{if(current!=='simulation'&&current!=='split')setMode('simulation');return instrument.runModel()}},
+  {label:'Run simulation from MJCF model',do:()=>{if(current!=='simulation'&&current!=='split')setMode('simulation');return instrument.runModel()}},
   {label:'Pause simulation',do:()=>instrument.act('pause')},
   {label:'Step simulation',do:()=>instrument.act('step')},
   {label:'Reset simulation',do:()=>instrument.act('reset')},
@@ -209,7 +224,12 @@ const drag=document.querySelector<HTMLElement>('.title-drag')!;drag.onpointerdow
 el('settings').onclick=settings;el('palette').onclick=()=>palette();el('music').onclick=music;el('dismiss').onclick=close
 el('project-name').onclick=()=>run(()=>browse());el('branch').onclick=()=>explorer?.gitMenu();el('git-menu').onclick=()=>explorer?.gitMenu();el('new-file').onclick=()=>explorer?.files();el('refresh').onclick=()=>run(()=>explorer?.refresh())
 el('new-shell').onclick=()=>run(()=>newShell());el('close-shell').onclick=closeShell
-el('run').onclick=()=>run(()=>current==='simulation'?instrument.runModel():runCurrentFile());el('stop').onclick=()=>run(stopRun)
+const runFileFromToolbar=()=>current!=='simulation'||isPython(selected)
+function updateRunButton(){
+ const control=el('run'),label=runFileFromToolbar()?'Run file':'Run model'
+ control.title=label;control.setAttribute('aria-label',label);control.querySelector('span')!.textContent=label
+}
+el('run').onclick=()=>run(()=>runFileFromToolbar()?runCurrentFile():instrument.runModel());el('stop').onclick=()=>run(stopRun)
 el('rail-explorer').classList.add('active');el('rail-explorer').onclick=()=>showSidebar('explorer');el('rail-search').onclick=()=>run(()=>explorer?.find());el('rail-git').onclick=()=>showSidebar('git');el('rail-debug').onclick=()=>setMode('debug');el('rail-run').onclick=()=>choices('Project tasks',(explorer?.tasks||[]).map(t=>({label:t.label,do:()=>explorer?.runTask(t.id)})))
 document.addEventListener('keydown',e=>{
  if(e.ctrlKey&&e.shiftKey&&e.code==='KeyP'){e.preventDefault();e.stopImmediatePropagation();if(dialog.open)close();else palette();return}
@@ -220,8 +240,7 @@ window.addEventListener('focus',refreshSoon)
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshSoon();instrument.paint()}})
 document.addEventListener('contextmenu',event=>event.preventDefault())
 async function boot(){installSimulationFullscreen();initializeLayout(()=>{
- const control=el('run'),label=current==='simulation'?'Run simulation':'Run file'
- control.title=label;control.setAttribute('aria-label',label);control.querySelector('span')!.textContent=label
+ updateRunButton()
  instrument.paint()
  });appearance.apply();const session=await api<{token:string;initial:string}>('session');setToken(session.token);instrument.sessionToken=session.token
  void appearance.loadCatalog().then(()=>refreshPaletteCatalog())

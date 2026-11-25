@@ -75,9 +75,16 @@ def metadata(model, title, mj):
     hinges = [t == mj.mjtJoint.mjJNT_HINGE for t in model.jnt_type]
     joints = [{"name": model.joint(i).name or f"joint{i}", "unit": "rad" if hinges[i] else "m"}
               for i in range(model.njnt)]
-    actuators = [{"name": model.actuator(i).name or f"actuator{i}",
-                  "unit": "N·m" if hinges[model.actuator_trnid[i, 0]] else "N"}
-                 for i in range(model.nu)]
+    actuators = []
+    for i in range(model.nu):
+        joint = model.actuator_trnid[i, 0]
+        unit = ""
+        if model.actuator_trntype[i] == mj.mjtTrn.mjTRN_JOINT and 0 <= joint < model.njnt:
+            if hinges[joint]:
+                unit = "N·m"
+            elif model.jnt_type[joint] == mj.mjtJoint.mjJNT_SLIDE:
+                unit = "N"
+        actuators.append({"name": model.actuator(i).name or f"actuator{i}", "unit": unit})
     geoms = [{"type": mj.mjtGeom(int(model.geom_type[i])).name.removeprefix("mjGEOM_").lower(),
               "body": int(model.geom_bodyid[i]) - 1, "pos": values(model.geom_pos[i]),
               "quat": values(model.geom_quat[i]), "size": values(model.geom_size[i])}

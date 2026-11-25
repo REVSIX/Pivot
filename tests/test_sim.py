@@ -1,5 +1,8 @@
 from pathlib import Path
 import json
+import os
+import subprocess
+import tempfile
 import unittest
 import sys
 
@@ -9,6 +12,24 @@ from run import Simulation, inspect_xml, simulate
 
 
 class SimulationTest(unittest.TestCase):
+    def test_python_file_runner_does_not_require_mujoco(self):
+        with tempfile.TemporaryDirectory() as folder:
+            script = Path(folder) / "plain script.py"
+            script.write_text(
+                "import sys\n"
+                "assert 'mujoco' not in sys.modules\n"
+                "assert sys.argv[1:] == ['two words']\n"
+                "print('plain Python ran')\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [sys.executable, "-I", "-S", str(ROOT / "telemetry/run_python.py"),
+                 str(script), "two words"],
+                cwd=folder, env={**os.environ, "PIVOT_EMBEDDED_RUN": "plain-test"},
+                capture_output=True, text=True, check=True,
+            )
+            self.assertEqual(result.stdout.strip(), "plain Python ran")
+
     def test_reference_capture(self):
         result = simulate((ROOT / "examples/pendulum/pendulum.xml").read_bytes())
         recorded = json.loads(

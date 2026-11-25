@@ -14,11 +14,21 @@ import { isPalette, isTheme, themes } from '../shared/theme.ts'
 type Output = { type: 'ready' } | {type:'exit';code:number} |
   {type:'run-result';file?:string;error?:string} | { type: 'data' | 'error' | 'notice'; data: string }
 type Launch = { command: string; args: string[]; cwd: string; address?: string }
-function fileRunner(cwd:string,file:string):Launch {
+function projectPython(cwd:string){
+  const file=path.join(cwd,process.platform==='win32'?'.venv/Scripts/python.exe':'.venv/bin/python')
+  return executable('python',file)
+}
+function fileRunner(cwd:string,file:string,embeddedArgs?:string[]):Launch {
   const extension=path.extname(file).toLowerCase()
+  if(embeddedArgs){
+    if(extension!=='.py')throw new Error('Open a Python script to run in the embedded viewer.')
+    const command=projectPython(cwd)||pythonPath()||executable('python3')
+    if(!command)throw new Error('Configure Python or create a .venv in the project root.')
+    return {command,args:['-u',path.join(base,'telemetry/run_python.py'),file,...embeddedArgs],cwd}
+  }
   let command:string|undefined,args:string[]=[]
   switch(extension){
-    case '.py': command=pythonPath()||executable('python3');args=['-u'];break
+    case '.py': command=pythonPath()||executable('python3')||projectPython(cwd);args=['-u'];break
     case '.js': case '.mjs': command=process.execPath;break
     case '.sh': command=executable('bash');break
     case '.ps1': command=executable('pwsh')||executable('powershell');args=['-NoProfile','-File'];break
@@ -122,8 +132,20 @@ export function attachEditor(
         const wsl = mode === 'wsl'
         const target = file && editor ? await inside(cwd, file, 'file') : cwd
         const runFile = !editor && url.searchParams.get('runFile')
+        const embedded = !editor && (url.searchParams.get('embedded')
+          || (runFile && /\.py$/i.test(runFile) ? randomUUID() : undefined))
+        let args:string[]|undefined
+        if(embedded){
+          if(!runFile||wsl||!/^[0-9a-f-]{36}$/i.test(embedded))throw new Error('Invalid embedded viewer launch.')
+          const raw=url.searchParams.get('args')||'[]'
+          if(raw.length>4096)throw new Error('Embedded script arguments exceed 4096 characters.')
+          const parsed:unknown=JSON.parse(raw)
+          if(!Array.isArray(parsed)||parsed.some(value=>typeof value!=='string'||value.includes('\0')))
+            throw new Error('Enter script arguments as a JSON array of strings.')
+          args=parsed
+        }
         const spec = editor ? nvim(cwd, target, user) :
-          runFile ? fileRunner(cwd,await inside(cwd,runFile,'file')) : shell(cwd, mode)
+          runFile ? fileRunner(cwd,await inside(cwd,runFile,'file'),args) : shell(cwd, mode)
         const launchTask = url.searchParams.get('task')
         if (!editor && !runFile && launchTask) task = await taskCommand(cwd, launchTask)
         let env: NodeJS.ProcessEnv =
@@ -131,7 +153,7 @@ export function attachEditor(
             ? editorEnv()
             : { ...process.env, TERM: 'xterm-256color', COLORTERM: 'truecolor' }
         if (!wsl) {
-          const instrumentation = telemetryEnv(folder, host(), token)
+          const instrumentation = telemetryEnv(folder, host(), token,embedded?spec.command:undefined)
           const paths = [
             ...instrumentation.PATH.split(path.delimiter),
             ...(env.PATH || '').split(path.delimiter),
@@ -142,6 +164,7 @@ export function attachEditor(
             PATH: [...new Set(paths.filter(Boolean))].join(path.delimiter),
           }
         }
+        if(embedded)env.PIVOT_EMBEDDED_RUN=embedded
         const gh = ghPath()
         if (gh && !wsl) env.PATH = path.dirname(gh) + path.delimiter + (env.PATH || '')
         // Native Windows uses the first case-insensitive PATH key it finds.

@@ -11,6 +11,8 @@ export class Instrument{
  project?:Project;file='';capture?:Capture;index=0;liveId='';cursor=-1;offset=0;state='Reference';camera=createCamera(readPref('projection','3d'));trace=readPref('trajectory',false);showOrigins=readPref('bodyOrigins',false)
  debug=new DebugView(i=>run(()=>this.seek(i)));private generation=0;private timer=0;private replayTimer=0;private replaying=false;private polling=false;private locked=false;private following=true;private external=false
  private previewRequest?:AbortController
+ private embeddedRun?:string
+ private embeddedSession?:string
  private pendingStop=false
  private clip?:Clip
  private exportingClip=false
@@ -58,14 +60,38 @@ export class Instrument{
   this.info();this.paint()
   if(this.file&&!this.capture)void this.loadPreview(p,this.file,generation)
  }
- async release(){const generation=++this.generation;this.clip=undefined;this.pendingStop=false;this.previewRequest?.abort();this.previewRequest=undefined;clearInterval(this.timer);this.stopReplay();const id=this.liveId;this.liveId='';this.cursor=-1;this.offset=0;this.following=true;this.external=false;if(id)await api('sim/'+id+'/action',{action:'close'}).catch(()=>{});return generation}
+ async release(keepPendingRun=false){const generation=++this.generation;if(!keepPendingRun)this.embeddedRun=undefined;this.embeddedSession=undefined;this.clip=undefined;this.pendingStop=false;this.previewRequest?.abort();this.previewRequest=undefined;clearInterval(this.timer);this.stopReplay();const id=this.liveId;this.liveId='';this.cursor=-1;this.offset=0;this.following=true;this.external=false;if(id)await api('sim/'+id+'/action',{action:'close'}).catch(()=>{});return generation}
+ prepareEmbedded(run:string){
+  this.embeddedRun=run
+  this.embeddedSession=undefined
+ }
+ async finishEmbedded(run:string){
+  if(run!==this.embeddedRun)return
+  await this.attachExternal()
+  if(run!==this.embeddedRun)return
+  const id=this.embeddedSession
+  this.embeddedRun=undefined
+  this.embeddedSession=undefined
+  if(id&&id===this.liveId){
+   const result=await api<Update>('sim/'+id+'/action',{action:'close',after:this.cursor}).catch(()=>undefined)
+   if(id===this.liveId&&result)this.accept(result)
+  }
+ }
  private async attachExternal(){
-  if(!this.project||!this.sessionToken||this.liveId||this.locked||this.previewRequest||this.clip)return
-  const generation=this.generation
+  const generation=this.generation,run=this.embeddedRun
+  const blocked=()=>this.locked||!!this.previewRequest||(run?!!this.embeddedSession:!!(this.liveId||this.clip))
+  if(!this.project||!this.sessionToken||blocked())return
   try{
-   const data=await api<{id?:string;capture?:Capture;cursor:number;offset:number;state:string}>('sim/active?folder='+encodeURIComponent(this.project.folder))
-   if(!data.id||!data.capture||this.liveId||this.locked||this.previewRequest||this.clip||generation!==this.generation)return
-   this.stopReplay();this.external=true;this.liveId=data.id;this.capture=data.capture;this.cursor=data.cursor;this.offset=data.offset;this.index=Math.max(0,data.capture.frames.length-1);this.following=true;this.state=data.state==='paused'?'Paused':'Running';this.info();this.paint();this.pollLoop()
+   const params=new URLSearchParams({folder:this.project.folder})
+   if(run)params.set('run',run)
+   const data=await api<{id?:string;capture?:Capture;cursor:number;offset:number;state:string}>('sim/active?'+params)
+   if(!data.id||!data.capture||blocked()||generation!==this.generation||run!==this.embeddedRun)return
+   if(run)this.embeddedSession=data.id
+   clearInterval(this.timer)
+   this.clip=undefined
+   this.stopReplay();this.external=data.state!=='closed';this.liveId=this.external?data.id:'';this.capture=data.capture;this.cursor=data.cursor;this.offset=data.offset;this.index=Math.max(0,data.capture.frames.length-1);this.following=true
+   this.state=data.state==='closed'?'Stopped':data.state==='paused'?'Paused':'Running'
+   this.info();this.paint();if(this.liveId)this.pollLoop()
   }catch{}
  }
  private stopReplay(){clearInterval(this.replayTimer);this.replaying=false}
@@ -84,6 +110,7 @@ export class Instrument{
   if(this.clip){this.replay();return}
   if(this.state==='Running')return this.act('pause')
   if(this.capture&&!this.following&&this.index<this.capture.frames.length-1){this.replay();return}
+  if(this.capture?.control==='passive'&&!this.liveId){this.index=0;this.replay();return}
   if(this.capture&&this.state==='Reference'){this.index=0;this.replay();return}
   return this.act('play')
  }
@@ -158,7 +185,7 @@ export class Instrument{
    if(this.project===project)refresh(entries(files))
   })
  }
- async act(action:string){if(this.locked||this.previewRequest)return;if(action==='step'&&this.clip)return this.seek(this.index+1);if(action==='reset'&&this.clip)this.cancelClip();if(action!=='play'&&!this.liveId)return;if(!this.project||(!this.file&&!this.liveId)){message('Select an MJCF model first.');return}
+ async act(action:string){if(this.locked||this.previewRequest)return;if((action==='reset'||action==='step')&&this.liveId&&this.capture?.control==='passive'){message('The Python script controls physics. Use the timeline to step through recorded frames.');return}if(action==='step'&&this.clip)return this.seek(this.index+1);if(action==='reset'&&this.clip)this.cancelClip();if(action!=='play'&&!this.liveId)return;if(!this.project||(!this.file&&!this.liveId)){message('Select an MJCF model first.');return}
  this.locked=true;this.paintTransport();const gen=this.generation
  try{
  if(!this.liveId){if(action==='pause')return
@@ -166,19 +193,38 @@ export class Instrument{
  this.liveId=opened.id;this.capture=opened.capture;this.cursor=opened.cursor;this.offset=opened.offset;this.index=this.capture.frames.length-1;this.state='Paused';this.info();this.debug.log('MuJoCo loaded '+this.file);this.pollLoop()}
  if(this.pendingStop&&action==='play'){this.pendingStop=false;action='pause'}
  this.stopReplay();if(action!=='pause')this.following=true;const result=await api<Update>('sim/'+this.liveId+'/action',{action,after:this.cursor,speed:Number(el<HTMLSelectElement>('speed').value)});if(gen!==this.generation)return;this.accept(result,action==='reset');this.debug.log('Simulation '+action+' · '+(this.capture?.frames[this.index]?.t??0).toFixed(3)+' s')
- }catch(e){report(e);this.debug.log(String(e));if(this.liveId){await this.release();this.state='Stopped';this.paint()}}finally{
+ }catch(e){
+  if(gen!==this.generation)return
+  const pending=!!this.embeddedRun&&!this.embeddedSession
+  if(!pending){report(e);this.debug.log(String(e))}
+  if(this.liveId){
+   const generation=await this.release(pending)
+   if(generation===this.generation){this.state='Stopped';this.paint()}
+  }
+ }finally{
   this.locked=false;this.paintTransport()
   if(this.pendingStop){this.pendingStop=false;if(this.state==='Running')await this.act('pause')}
  }}
  private pollLoop(){clearInterval(this.timer);this.timer=window.setInterval(()=>void this.poll(),50)}
  private lastPoll=0
- private async poll(){if(!this.liveId||this.locked||this.polling||document.hidden)return;if(this.state!=='Running'&&performance.now()-this.lastPoll<20000)return
+ private async poll(){if(!this.liveId||this.locked||this.polling||document.hidden)return;if(this.state!=='Running'&&performance.now()-this.lastPoll<(this.capture?.control==='passive'?500:20000))return
  this.polling=true;this.lastPoll=performance.now();const id=this.liveId
- try{const data=await api<Update>('sim/'+id+'?after='+this.cursor);if(id===this.liveId&&!this.locked)this.accept(data)}catch(e){if(id===this.liveId){await this.release();this.state='Stopped';this.paint();report(e)}}finally{this.polling=false}}
+ try{
+  const data=await api<Update>('sim/'+id+'?after='+this.cursor)
+  if(id===this.liveId&&!this.locked)this.accept(data)
+ }catch(e){
+  if(id!==this.liveId)return
+  const pending=!!this.embeddedRun&&!this.embeddedSession
+  const generation=await this.release(pending)
+  if(generation!==this.generation)return
+  this.state='Stopped';this.paint()
+  if(pending)await this.attachExternal()
+  else report(e)
+ }finally{this.polling=false}}
  private accept(data:Update,reset=false){if(!this.capture)return;if(!reset&&data.cursor<this.cursor)return
  if(reset||data.offset>this.cursor+1){this.capture.frames=data.frames.slice();this.offset=data.offset}
  else{const skip=Math.max(0,this.cursor+1-data.offset);this.capture.frames.push(...data.frames.slice(skip));const extra=this.capture.frames.length-2048;if(extra>0){this.capture.frames.splice(0,extra);this.offset+=extra}}
- this.cursor=data.cursor;if(this.following)this.index=Math.max(0,this.capture.frames.length-1);this.state=data.state==='playing'?'Running':data.state==='paused'?'Paused':data.state;if(data.state==='closed'){clearInterval(this.timer);this.liveId='';this.external=false}this.paint();if(data.error)this.debug.log(data.error)}
+ this.cursor=data.cursor;if(this.following)this.index=Math.max(0,this.capture.frames.length-1);this.state=data.state==='playing'?'Running':data.state==='paused'?'Paused':data.state==='closed'?'Stopped':data.state;if(data.state==='closed'){clearInterval(this.timer);this.liveId='';this.external=false}this.paint();if(data.error)this.debug.log(data.error)}
  async seek(index:number){this.stopReplay();if(this.state==='Running')await this.act('pause');if(!this.capture)return;this.following=false;this.index=Math.max(this.clip?.start??0,Math.min(index,this.clip?.end??this.capture.frames.length-1));this.paint()}
  info(){el('model-name').textContent=this.capture?.title||builtInModel(this.file)?.label||this.file||'No model';el('joints').replaceChildren();el('actuators').replaceChildren();el('solver').replaceChildren()
  const add=(id:string,label:string,value:string,color?:string)=>{const row=node('div','','field'),left=node('span',label);if(color){const s=node('i','','swatch');s.style.background=color;left.prepend(s)}row.append(left,node('output',value));el(id).append(row)}
@@ -188,14 +234,14 @@ export class Instrument{
  if(c&&f&&canvas.clientWidth){scene(canvas,c,this.index,this.trace&&!preview,this.camera,this.showOrigins);if(!preview){el('joints').querySelectorAll('output').forEach((o,i)=>o.textContent=f.q[i].toFixed(3)+' '+c.joints[i].unit);el('actuators').querySelectorAll('output').forEach((o,i)=>o.textContent=(f.actuatorForce?.[i]?.toFixed(2)??'—')+' '+(c.actuators?.[i].unit||''))}}
  if(!f&&canvas.width){const g=canvas.getContext('2d');g?.clearRect(0,0,canvas.width,canvas.height)}
  el('scene-empty').hidden=!!(this.file||c);el('scene-note').hidden=!(this.file||c)
- el('scene-note').textContent=this.liveId?'MuJoCo '+(c?.engine||''):preview?'Model preview':c?'Reference capture · MuJoCo '+c.engine:this.file?this.state:'Select an MJCF model'
+ el('scene-note').textContent=this.liveId?'MuJoCo '+(c?.engine||''):preview?'Model preview':c?(c.control==='passive'?'Python capture':'Reference capture')+' · MuJoCo '+c.engine:this.file?this.state:'Select an MJCF model'
  el('time').textContent=f&&!preview?f.t.toFixed(3)+' s':'—';const slider=el<HTMLInputElement>('timeline');slider.max=String(Math.max(0,(c?.frames.length||1)-1));slider.value=String(this.index);slider.style.setProperty('--progress',(this.index/Math.max(1,+slider.max))*100+'%')
  el('state').textContent='Simulation · '+this.state;el('capture-label').textContent=c&&!preview?c.frames.length+' samples':'Local workspace'
  this.paintTransport();this.debug.update(preview?undefined:this.capture,this.index)}
  private paintTransport(){
   const play=el<HTMLButtonElement>('play'),playing=this.state==='Running'||this.replaying
   const pressed=String(playing)
-  const label=playing?'Pause':this.clip?'Play clip':'Run sim'
+  const label=playing?'Pause':this.clip?'Play clip':this.capture?.control==='passive'?'Play':'Run sim'
   if(play.getAttribute('aria-pressed')!==pressed||play.querySelector('span')?.textContent!==label){
    play.setAttribute('aria-pressed',pressed)
    play.innerHTML=icon(playing?'pause':'play')
@@ -207,7 +253,7 @@ export class Instrument{
   play.dataset.paused=String(!playing&&(this.state==='Paused'||(!this.following&&!!this.capture)))
   for(const id of ['rewind','back','step','latest','timeline'])
    el<HTMLButtonElement|HTMLInputElement>(id).disabled=!this.capture||this.state==='Preview'
-  el<HTMLButtonElement>('sim-reset').disabled=!this.liveId
+  el<HTMLButtonElement>('sim-reset').disabled=!this.liveId||this.capture?.control==='passive'
   el<HTMLButtonElement>('simulation-download').disabled=this.locked||!this.capture?.frames[this.index]
   this.paintClip()
  }
