@@ -90,7 +90,7 @@ dialog:has(.split-diff){width:min(1160px,96vw);max-height:89vh}
 :root[data-sim-fullscreen] #sim-pane :is(.panel-head,.transport){position:absolute;inset-inline:0;z-index:1;background:var(--panel);transition:opacity .18s ease}
 :root[data-sim-fullscreen] #sim-pane .panel-head{bottom:36px;border-top:1px solid var(--line);height:36px}
 :root[data-sim-fullscreen] #sim-pane .transport{bottom:0}
-:root[data-sim-fullscreen] #sim-pane:not([data-controls=shown]):not(:has(:focus-visible)) :is(.panel-head,.transport):not(:hover){opacity:0;pointer-events:none}
+:root[data-sim-fullscreen] #sim-pane:not([data-controls=shown]):not(:has(:focus-visible)) :is(.panel-head,.transport){opacity:0;pointer-events:none}
 :root[data-sim-fullscreen] #sim-fullscreen{width:auto;padding:0 8px}
 :root[data-sim-fullscreen] #sim-fullscreen span{display:inline;white-space:nowrap}
 
