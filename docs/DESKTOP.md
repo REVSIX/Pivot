@@ -21,7 +21,7 @@ Set-Location "$env:LOCALAPPDATA\Programs\Pivot\app"
 powershell -NoProfile -ExecutionPolicy RemoteSigned -File .\desktop\setup-integrations.ps1 -PythonOnly
 ```
 
-This creates the local Python environment and installs the pinned MuJoCo and MCAP requirements. Restart Pivot, then use `& $env:PIVOT_PYTHON .\controller.py` in a Pivot PowerShell terminal to run the bundled controller with that interpreter. Set `PIVOT_PYTHON` or `PIVOT_NVIM` to an absolute executable path before launch to use an existing installation. The MSI and bundled editor work offline. First-time Python setup needs internet access. For a source checkout, `-EditorOnly` provisions the editor and validates the portable Neovim archive if it needs to download it.
+This installs MuJoCo 4.0.1 and MCAP 1.6.0 in Pivot's managed Python environment. Rerun the same command after upgrading Pivot to update an existing environment. When migrating from MuJoCo 3.x, setup downloads the replacement wheels before removing the old package. Restart Pivot, then use `& $env:PIVOT_PYTHON .\controller.py` in a Pivot PowerShell terminal to run the bundled controller with that interpreter. Set `PIVOT_PYTHON` or `PIVOT_NVIM` to an absolute executable path before launch to use an existing installation. The MSI and bundled editor work offline. Downloading Python packages needs internet access. For a source checkout, `-EditorOnly` provisions the editor and validates the portable Neovim archive if it needs to download it.
 
 Use the included Node runtime in a terminal to convert telemetry:
 

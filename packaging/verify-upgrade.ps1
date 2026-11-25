@@ -87,6 +87,7 @@ try {
   }
   if ($upgrade) {
     if (!(Test-Path -LiteralPath $python -PathType Leaf)) { throw 'The upgrade removed the Python environment.' }
+    & (Join-Path $install 'app/desktop/setup-integrations.ps1') -PythonOnly
   } else { Setup-Python }
 
   node (Join-Path $PSScriptRoot 'smoke-service.mjs') $install $workspace
