@@ -9,6 +9,10 @@ export function themeExpression(p:Palette) {
     Pmenu:[p.text,p.surface],PmenuSel:[p.text,p.sel],
   }
   const entries=Object.entries(colors).map(([group,[fg,bg]])=>group+'={fg="'+fg+'",bg="'+bg+'"}')
+  entries.push(
+    'SnacksIndent={fg="'+p.muted+'",nocombine=true}',
+    'SnacksIndentScope={fg="'+p.accent+'",nocombine=true}',
+  )
   const lua='lua local groups={'+entries.join(',')+'}; local function apply() for group,style in pairs(groups) do vim.api.nvim_set_hl(0,group,style) end end; apply(); vim.api.nvim_create_autocmd({"VimEnter","ColorScheme"},{group=vim.api.nvim_create_augroup("PivotTheme",{clear=true}),callback=apply})'
   return "execute('"+lua+"')"
 }
