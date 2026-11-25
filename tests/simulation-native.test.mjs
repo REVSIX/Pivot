@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { once } from 'node:events'
-import { mkdtemp,readFile,rm,writeFile } from 'node:fs/promises'
+import { mkdtemp,readFile,realpath,rm,writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -69,7 +69,8 @@ print("Passive viewer script completed")
     assert.ok(channels.some(channel=>channel.name===name),name)
 })
 async function service(t,root=path.join(base,'examples')) {
-  const token='native-test-token',app=express(),live=liveSimulationRoutes(root,()=>host,token)
+  const workspace=await realpath(root)
+  const token='native-test-token',app=express(),live=liveSimulationRoutes(workspace,()=>host,token)
   app.use((req,res,next)=>req.get('X-Pivot-Token')===token?next():res.status(403).end())
   app.use('/api',express.json({limit:'64kb'}),live.router,telemetryRoutes())
   const server=app.listen(0,'127.0.0.1')
