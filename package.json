@@ -19,7 +19,7 @@
     "doctor": "node scripts/doctor.mjs",
     "mcap": "node scripts/mcap.mjs",
     "test:mcap": "node scripts/test-python.mjs mcap",
-    "test:native": "node --test tests/native.test.mjs"
+    "test:native": "node --test --test-concurrency=1 tests/native.test.mjs tests/simulation-native.test.mjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "0.11.0",

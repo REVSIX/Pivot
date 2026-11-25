@@ -5,13 +5,69 @@ import { mkdtemp,readFile,rm,writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import express from 'express'
 import { base,pythonPath } from '../scripts/runtime.mjs'
 import { liveSimulationRoutes } from '../server/live-simulation.ts'
 import { telemetryEnv,telemetryRoutes } from '../server/telemetry.ts'
+import { createWorkbench } from '../server/app.ts'
+import { WebSocket } from 'ws'
 
 const exec=promisify(execFile)
+test('Run in Embedded Viewer streams an unchanged passive-viewer script and its sensors', {timeout:20000},async t=>{
+  const root=await mkdtemp(path.join(tmpdir(),'pivot-embedded-'))
+  await writeFile(path.join(root,'passive demo.py'),`
+import sys
+from pathlib import Path
+import mujoco
+import mujoco.viewer
+
+assert sys.argv[1:] == ["--label", "two words"]
+assert Path(__file__).parent.resolve() == Path.cwd().resolve()
+model = mujoco.MjModel.from_xml_string("""
+<mujoco>
+ <worldbody><body><joint name="hinge"/><geom size=".1" pos=".12 0 0" mass=".1"/></body></worldbody>
+ <actuator><motor name="drive" joint="hinge"/></actuator>
+ <sensor><jointpos name="angle" joint="hinge"/></sensor>
+</mujoco>
+""")
+data = mujoco.MjData(model)
+with mujoco.viewer.launch_passive(model, data) as viewer:
+    with viewer.lock():
+        viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = 1
+    data.ctrl[0] = .1
+    for _ in range(10):
+        assert viewer.is_running()
+        mujoco.mj_step(model, data)
+        viewer.sync()
+print("Passive viewer script completed")
+`)
+  const wb=await createWorkbench({root})
+  wb.server.listen(0,'127.0.0.1')
+  await once(wb.server,'listening')
+  t.after(async()=>{await wb.close();await rm(root,{recursive:true,force:true,maxRetries:3,retryDelay:100})})
+  const origin='http://127.0.0.1:'+wb.server.address().port
+  const {token}=await (await fetch(origin+'/api/session')).json()
+  const run=randomUUID()
+  const query=new URLSearchParams({folder:'.',runFile:'passive demo.py',embedded:run,args:JSON.stringify(['--label','two words'])})
+  const ws=new WebSocket(origin.replace('http:','ws:')+'/terminal?'+query,'pivot.'+token,{origin})
+  t.after(()=>ws.terminate())
+  let output=''
+  ws.on('message',(data,binary)=>{if(!binary)output+=data.toString()})
+  const [code,reason]=await once(ws,'close')
+  assert.equal(code,1000,reason.toString()+'\n'+output)
+  const get=async suffix=>(await fetch(origin+'/api/'+suffix,{headers:{'X-Pivot-Token':token}})).json()
+  const recording=await get('sim/active?folder=.&run='+run)
+  assert.equal(recording.state,'closed')
+  assert.equal(recording.capture.control,'passive')
+  assert.equal(recording.capture.source.script,'passive demo.py')
+  assert.ok(recording.capture.frames.at(-1).t>0)
+  assert.ok(recording.capture.frames.at(-1).q[0]>0)
+  const {channels}=await get('telemetry?folder=.')
+  for(const name of ['MuJoCo/joint/hinge/position','MuJoCo/joint/hinge/velocity','MuJoCo/actuator/drive/control','MuJoCo/actuator/drive/force','MuJoCo/sensor/angle'])
+    assert.ok(channels.some(channel=>channel.name===name),name)
+})
 async function service(t,root=path.join(base,'examples')) {
   const token='native-test-token',app=express(),live=liveSimulationRoutes(root,()=>host,token)
   app.use((req,res,next)=>req.get('X-Pivot-Token')===token?next():res.status(403).end())

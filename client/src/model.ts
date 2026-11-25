@@ -9,6 +9,7 @@ export interface Capture {
   actuators?: {name:string; unit:string}[]
   geoms?: {type:string; body:number; pos:number[]; quat:number[]; size:number[]}[]
   source?: {script?:string;model?:string}
+  control?: 'passive'
   frames: Frame[]
 }
 

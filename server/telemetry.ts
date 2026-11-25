@@ -96,8 +96,8 @@ export function telemetryRoutes(){
   })
   return router
 }
-export function telemetryEnv(folder:string,host:string,token:string){
-  const python=pythonPath(), sdk=path.join(base,'telemetry'), bins=[path.join(sdk,'bin')]
+export function telemetryEnv(folder:string,host:string,token:string,python=pythonPath()){
+  const sdk=path.join(base,'telemetry'), bins=[path.join(sdk,'bin')]
   if(python)bins.push(path.dirname(python))
   return {PIVOT_TELEMETRY_URL:'http://'+host,PIVOT_TELEMETRY_TOKEN:token,PIVOT_TELEMETRY_FOLDER:folder,
     PIVOT_SIMULATOR_DIR:path.join(base,'simulator'),

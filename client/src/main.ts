@@ -11,7 +11,7 @@ import type {Session} from './editor.ts'
 const instrument=new Instrument()
 let project:Project|undefined,explorer:Explorer|undefined,editor:Session|undefined
 let selected='',epoch=0,refreshTimer=0,editorLoading=false,shellSequence=0,activeShell=0
-type Shell={id:number;label:string;host:HTMLElement;session?:Session;ended:boolean;runFile?:string}
+type Shell={id:number;label:string;host:HTMLElement;session?:Session;ended:boolean;runFile?:string;embedded?:string}
 const shells:Shell[]=[]
 let editorThemeTimer=0
 let refreshPaletteCatalog=()=>{}
@@ -25,27 +25,32 @@ const appearance=new Appearance((colors,preview)=>{
 })
 function shellTabs(){const bar=el('shell-tabs');bar.replaceChildren();for(const sh of shells){const b=button(sh.label,()=>activateShell(sh.id),sh.id===activeShell?'active':'');bar.append(b);sh.host.hidden=sh.id!==activeShell};if(!shells.length){const note=node('div','','shell-placeholder');note.append(button('Open terminal',()=>newShell(),'plain-action'));el('shell-hosts').replaceChildren(note)}el<HTMLButtonElement>('close-shell').disabled=!shells.length}
 function activateShell(id:number){activeShell=id;shellTabs();shells.find(x=>x.id===id)?.session?.focus()}
-async function newShell({task,shell='native',focus=true,runFile}:{
- task?:string;shell?:'native'|'wsl'|'serial';focus?:boolean;runFile?:string
+async function newShell({task,shell='native',focus=true,runFile,embedded,args}:{
+ task?:string;shell?:'native'|'wsl'|'serial';focus?:boolean;runFile?:string;embedded?:string;args?:string
 }={}){
  if(!project)return
  const gen=epoch,folder=project.folder,{launch}=await import('./editor.ts');if(gen!==epoch)return
  if(runFile)for(const entry of shells.filter(s=>s.runFile&&s.ended))removeShell(entry.id)
  if(shells.length>=4){message('Close a terminal before opening another.');return}
+ if(embedded){
+  if(!await instrument.prepareEmbedded(embedded)||gen!==epoch)return
+  setMode('split')
+ }
  if(focus)showShell()
  const id=++shellSequence,host=node('div','','shell-instance'),screen=node('div','','shell-screen')
  const label=runFile?'Run · '+runFile.split('/').at(-1):task?task.split(':').at(-1)!:shell==='wsl'?'WSL':shell==='serial'?'Serial Monitor':'Shell '+id
  host.append(screen)
  el('shell-hosts').querySelector('.shell-placeholder')?.remove();el('shell-hosts').append(host)
- const sh:Shell={id,label,host,ended:false,runFile};shells.push(sh);activeShell=id;shellTabs()
- sh.session=launch(screen,token,folder,'terminal',{shell,task,runFile},reason=>{
+ const sh:Shell={id,label,host,ended:false,runFile,embedded};shells.push(sh);activeShell=id;shellTabs()
+ sh.session=launch(screen,token,folder,'terminal',{shell,task,runFile,embedded,args},reason=>{
   sh.ended=true
   host.append(node('p',reason,'shell-exit'))
+  if(embedded)void instrument.finishEmbedded(embedded)
   instrument.debug.log(label+' · '+reason)
   if(gen===epoch)refreshSoon()
  },()=>{if(focus&&gen===epoch&&activeShell===id&&host.getClientRects().length&&!dialog.open)sh.session?.focus()})
 }
-function removeShell(id:number){const i=shells.findIndex(s=>s.id===id);if(i<0)return;const sh=shells.splice(i,1)[0];sh.session?.close();sh.host.remove();activeShell=shells.at(-1)?.id||0;shellTabs()}
+function removeShell(id:number){const i=shells.findIndex(s=>s.id===id);if(i<0)return;const sh=shells.splice(i,1)[0];sh.session?.close();if(sh.embedded)void instrument.finishEmbedded(sh.embedded);sh.host.remove();activeShell=shells.at(-1)?.id||0;shellTabs()}
 function closeShell(){const sh=shells.find(s=>s.id===activeShell);if(!sh)return;if(sh.ended){removeShell(sh.id);return}confirmAction('Close terminal','End '+sh.label+' and any process running in it?','Close terminal',()=>removeShell(sh.id))}
 function refreshSoon(){clearTimeout(refreshTimer);refreshTimer=window.setTimeout(()=>{if(explorer)run(()=>explorer!.refresh())},650)}
 function showSelected(){explorer?.select(selected)}
@@ -76,7 +81,7 @@ function showSidebar(view:'explorer'|'git',force=false){
  sidebar(force||!same||maximized)
 }
 let readingRunFile=false
-async function runCurrentFile(){
+async function runCurrentFile(embeddedArgs?:string[]){
  const session=editor
  if(!session){message('Open a file in LazyVim first.');return}
  const running=shells.find(shell=>shell.runFile&&!shell.ended)
@@ -85,11 +90,14 @@ async function runCurrentFile(){
  readingRunFile=true
  try{
   const runFile=await session.runFile()
-  if(editor===session)await newShell({runFile})
+  if(editor!==session)return
+  if(embeddedArgs&&!/\.py$/i.test(runFile)){message('Open a Python script to run in the embedded viewer.');return}
+  await newShell({runFile,...(embeddedArgs?{embedded:crypto.randomUUID(),args:JSON.stringify(embeddedArgs)}:{})})
  }finally{readingRunFile=false}
 }
 async function stopRun(){
- const terminal=shells.find(shell=>shell.id===activeShell&&!shell.ended)
+ const terminal=shells.find(shell=>shell.embedded&&!shell.ended)
+  ??shells.find(shell=>shell.id===activeShell&&!shell.ended)
  const simulation=instrument.stop()
  if(terminal?.session)terminal.session.interrupt()
  if(!await simulation&&!terminal?.session)message('No active simulation or selected terminal.')
@@ -168,6 +176,12 @@ function palette(){
   {label:'Git branches and remote operations',do:()=>explorer?.gitMenu()},
   {label:'Refresh explorer and Git status',do:()=>explorer?.refresh()},
   {label:'Run current file',do:runCurrentFile},
+  {label:'Run in Embedded Viewer',do:()=>runCurrentFile([])},
+  {label:'Run in Embedded Viewer with arguments',do:()=>promptText('Run in Embedded Viewer','Script arguments as a JSON array of strings','[]',input=>{
+   const args:unknown=JSON.parse(input)
+   if(!Array.isArray(args)||args.some(arg=>typeof arg!=='string'))throw new Error('Enter a JSON array of strings, e.g. ["--steps","500"].')
+   return runCurrentFile(args)
+  })},
   {label:'Stop simulation and send Ctrl+C to terminal',do:stopRun},
   {label:'New terminal',do:()=>newShell()},
   {label:'Serial Monitor',do:()=>newShell({shell:'serial'})},

@@ -115,16 +115,19 @@ export function liveSimulationRoutes(root:string,host:()=>string,token:string){
   const router=Router()
   let active:LiveSession|undefined,starting:NativeModel|undefined,opening=false,closed=false,expiry:NodeJS.Timeout|undefined
   const previews=new Set<NativeModel>()
-  let external:{id:string;folder:string;capture:Capture;offset:number;paused:boolean;reset:boolean;stop:boolean;last:number}|undefined
-  const externalState=()=>{if(external&&Date.now()-external.last>5000)external.stop=true;return external}
+  let external:{id:string;folder:string;run?:string;capture:Capture;offset:number;paused:boolean;reset:boolean;stop:boolean;last:number}|undefined
+  const externalState=()=>{if(external&&Date.now()-external.last>(external.run?30000:5000))external.stop=true;return external}
   const externalSnapshot=(s:NonNullable<typeof external>,after:unknown)=>{const cursor=s.offset+s.capture.frames.length-1;const n=Number(after??-1);const offset=Math.max(s.offset,Number.isSafeInteger(n)?n+1:0);return {state:s.stop?'closed':s.paused?'paused':'playing',speed:1,cursor,offset,frames:s.capture.frames.slice(offset-s.offset)}}
   router.post('/sim/external',async(req,res)=>{
     const folder=req.body?.folder;await inside(root,folder,'directory')
     const capture=req.body?.capture as Capture
     if(!capture||!Array.isArray(capture.frames)||!Array.isArray(capture.nodes)||!Array.isArray(capture.geoms))throw new Fault('Invalid Python simulation state.')
+    const run=req.body?.run
+    if(run!==undefined&&(typeof run!=='string'||!/^[0-9a-f-]{36}$/i.test(run)))throw new Fault('Invalid embedded run ID.')
+    capture.control=run?'passive':undefined
     const filename=(value:unknown)=>typeof value==='string'?value.split(/[\\/]/).at(-1)?.slice(0,255):undefined
     capture.source={script:filename(req.body?.script),model:filename(req.body?.model)}
-    finish();external={id:randomUUID(),folder,capture,offset:0,paused:false,reset:false,stop:false,last:Date.now()}
+    finish();external={id:randomUUID(),folder,run,capture,offset:0,paused:false,reset:false,stop:false,last:Date.now()}
     res.json({id:external.id})
   })
   router.post('/sim/external/frame',(req,res)=>{
@@ -137,7 +140,11 @@ export function liveSimulationRoutes(root:string,host:()=>string,token:string){
     res.json({paused:s.paused,reset:s.reset,stop:s.stop});s.reset=false
   })
   router.post('/sim/external/close',(req,res)=>{const s=external;if(s && s.id===req.body?.id)s.stop=true;res.json({closed:true})})
-  router.get('/sim/active',(req,res)=>{const s=externalState();res.json(s&&!s.stop&&s.folder===req.query.folder?{id:s.id,capture:s.capture,...externalSnapshot(s,-1)}:{})})
+  router.get('/sim/active',(req,res)=>{
+    const s=externalState(),run=req.query.run
+    const matches=s&&s.folder===req.query.folder&&(run===undefined?!s.stop:s.run===run)
+    res.json(matches?{id:s.id,capture:s.capture,...externalSnapshot(s,-1)}:{})
+  })
   function finish(){clearTimeout(expiry);active?.stop();active=undefined}
   function touch(){clearTimeout(expiry);expiry=setTimeout(finish,120000);expiry.unref()}
   function find(id:string){if(!active||id!==active.id)throw new Fault('Simulation session expired. Run the model again.',410);touch();return active}
@@ -193,7 +200,8 @@ export function liveSimulationRoutes(root:string,host:()=>string,token:string){
     if(live?.id===req.params.id){const action=req.body?.action
       if(action==='play')live.paused=false
       else if(action==='pause')live.paused=true
-      else if(action==='reset'){live.reset=true;live.paused=false}
+      else if(action==='reset'&&!live.run){live.reset=true;live.paused=false}
+      else if(action==='reset'||action==='step'&&live.run)throw new Fault('This viewer records physics owned by the script.',409)
       else if(action==='close'||action==='stop')live.stop=true
       else if(action!=='speed'&&action!=='step')throw new Fault('Unknown simulation action.')
       res.json(externalSnapshot(live,req.body?.after));return}

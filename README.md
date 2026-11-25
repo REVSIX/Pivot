@@ -45,6 +45,7 @@ Press **Ctrl+Shift+P** to open the command palette. Type to filter, use **↑/�
 | Switch to the terminal | **Open existing terminal** or **New terminal**. Each terminal keeps its own state and history. |
 | Copy or paste terminal text | Right-click for **Copy**, **Paste**, and **Select all**, or use **Ctrl+Shift+C** and **Ctrl+Shift+V**. |
 | Run the active saved buffer | **Run current file**. Python, JavaScript, shell, and PowerShell output appear in the integrated terminal. **Stop** interrupts the selected terminal and pauses simulation while keeping the recorded frames available for replay. |
+| Embed a Python MuJoCo viewer | Open the entry script and choose **Run in Embedded Viewer**. Standard `mujoco.viewer.launch_passive()` calls stream frames to Simulation and joint, actuator, and sensor data to Debug. |
 | Review a patch | **Show source control sidebar**. Select a changed file to compare both versions. Stage files, commit, or find branch and remote commands from the palette. |
 | Preview or run a model | **Select MJCF model**, or click an MJCF in Explorer while in Simulation, to inspect its initial pose. **Run simulation** starts physics and playback. In fullscreen, tap the viewport or move the pointer to show both control bars. They fade together after a short idle period. Choose **Exit fullscreen** or press **Esc** to leave. |
 | Inspect body origins | **Simulation options → Show body origins** adds bearing-shaped markers. The default view shows the model geometry without those overlays. |
@@ -64,8 +65,8 @@ For completion, definitions, and diagnostics, install the language server for yo
 ## Run your own robotics project
 
 1. Open the folder containing your model and controller. **Pick model** lists project MJCF (`.xml`) files and built-in models. The embedded renderer supports single-file MJCF with supported hinge and slide joints and primitive geometry. See [project workflows](docs/PROJECTS.md) for workspace and tool details.
-2. Start with **Run sim** to check geometry and basic dynamics. Run your Python controller from the terminal when you want it to own the simulation. In a Pivot terminal, use `pivot_viewer.launch_passive(model, data, model_path)` in place of the standalone MuJoCo viewer, then call `viewer.sync()` in the loop to stream frames to the Simulation panel.
-3. Use `ide_telem.log("tracking_error", error, unit="rad", timestamp=data.time)` in Python to send a named signal to Debug. Sample at a frequency appropriate for plots and call `ide_telem.flush()` before your script exits.
+2. Start with **Run sim** to check geometry and basic dynamics. To run an existing Python controller, set up its project dependencies, open the saved entry script, and choose **Run in Embedded Viewer**. Pivot uses the script's existing `mujoco.viewer.launch_passive()` and `viewer.sync()` calls. Try the [standalone MuJoCo pendulum script](examples/passive-viewer/pendulum.py), or see [embedded Python runs](docs/PROJECTS.md#embedded-python-runs) for interpreter selection, arguments, and controls.
+3. Open **Debug → Select debug channels** to plot the automatic MuJoCo readings. Use `ide_telem.log("tracking_error", error, unit="rad", timestamp=data.time)` for custom signals, and call `ide_telem.flush()` before your script exits.
 4. Use **Export CSV** or **Export telemetry as MCAP** to take the data into other tools. For repeatable terminal commands, put named tasks in `.pivot-tasks.json` or `package.json`.
 
 <img width="1512" height="612" alt="train" src="https://github.com/user-attachments/assets/4be98be4-e257-4d53-9cf3-292ac6d4788d" />
