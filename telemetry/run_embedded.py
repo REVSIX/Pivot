@@ -1,17 +1,13 @@
-"""Launch a project script with a process-local MuJoCo passive viewer adapter."""
+"""Stream a MuJoCo passive viewer to Pivot."""
 import math
 import os
-from pathlib import Path
-import runpy
 import sys
 from threading import Condition, RLock, Thread
 import time
 
 import mujoco as mj
-import mujoco.viewer
 
 import ide_telem
-import pivot_viewer
 from pivot_viewer import PivotViewer, metadata, sample
 
 
@@ -131,44 +127,3 @@ class EmbeddedViewer(PivotViewer):
             self._closing = True
             self._ready.notify()
         self._worker.join(timeout=4.5)
-
-
-def main():
-    run = os.environ["PIVOT_EMBEDDED_RUN"]
-    script = Path(sys.argv[1]).resolve(strict=True)
-    try:
-        hz = float(os.getenv("PIVOT_SIM_HZ", "20"))
-        if not math.isfinite(hz) or not 1 <= hz <= 60:
-            raise ValueError
-    except ValueError:
-        hz = 20
-
-    handles = []
-
-    def launch(model, data, model_path=None):
-        if any(handle.is_running() for handle in handles):
-            raise RuntimeError("Pivot embeds one passive viewer per script.")
-        viewer = EmbeddedViewer(model, data, model_path or script.stem, run, 1 / hz)
-        handles.append(viewer)
-        return viewer
-
-    def launch_passive(model, data, *, key_callback=None, show_left_ui=True, show_right_ui=True):
-        if key_callback is not None:
-            print("Pivot does not forward embedded viewer key callbacks.", file=sys.stderr)
-        return launch(model, data)
-
-    mujoco.viewer.launch_passive = launch_passive
-    pivot_viewer.launch_passive = launch
-    sys.argv = [str(script), *sys.argv[2:]]
-    sys.path.insert(0, str(script.parent))
-    try:
-        runpy.run_path(str(script), run_name="__main__")
-    finally:
-        for viewer in handles:
-            viewer.close()
-    if not handles:
-        print("No passive MuJoCo viewer opened. Use mujoco.viewer.launch_passive() to stream a simulation.")
-
-
-if __name__ == "__main__":
-    main()

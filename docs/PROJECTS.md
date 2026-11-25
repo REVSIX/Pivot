@@ -27,10 +27,10 @@ Native Windows terminal sessions start PowerShell with a clean profile in the pr
 ## Embedded Python runs
 
 1. Clone and open the project folder. Set up its dependencies as usual. Pivot looks for the project’s `.venv` first, then its configured Python, then Python on PATH. The script starts in the project folder, with its own directory available for imports.
-2. Open the saved Python entry script. Use **Ctrl+Shift+P → Run in Embedded Viewer**. To pass command-line arguments, choose **Run in Embedded Viewer with arguments** and enter a JSON array such as `["--model", "models/arm.xml", "--seed", "42"]`.
-3. The script steps the physics and sends a snapshot when it calls `viewer.sync()`. Pause freezes the displayed stream and recording. **Stop** interrupts the Python process and keeps captured frames available for replay.
+2. Open the saved Python entry script and click **Run file**, or choose **Ctrl+Shift+P → Run current file** from any view. The run stays active as you switch between Code, Debug, Simulation, and Split. To pass command-line arguments, choose **Run in Embedded Viewer with arguments** and enter a JSON array such as `["--model", "models/arm.xml", "--seed", "42"]`.
+3. The script steps the physics and sends a snapshot when it calls `viewer.sync()`. Pause freezes the displayed stream and recording. **Stop** interrupts the Python process and keeps captured frames available for replay. For model-only physics, use **Run simulation from MJCF model** in the palette.
 
-This command supports `mujoco.viewer.launch_passive()` and the earlier `pivot_viewer.launch_passive()` helper. Use **Run current file** for a normal standalone viewer. The embedded viewer has its own camera and controls. Native viewer keyboard callbacks, camera settings, and custom rendering overlays require the standalone viewer. Embedded rendering follows Pivot’s existing geometry support.
+Pivot embeds `mujoco.viewer.launch_passive()` and the earlier `pivot_viewer.launch_passive()` helper. Regular Python scripts can use **Run file** without installing MuJoCo. To use native viewer keyboard callbacks, camera settings, or custom rendering overlays, launch the script directly from a terminal. Embedded rendering follows Pivot's existing geometry support.
 
 Debug lists up to 48 automatic channels per model under `MuJoCo/`, using simulation time. Set `PIVOT_SIM_HZ` in Pivot’s environment to change the maximum snapshot rate from 20 Hz (range 1–60). `PIVOT_TELEMETRY_OFF=1` disables Debug telemetry while leaving the embedded viewer available. Log application values like controller error, reward, or target position explicitly with `ide_telem.log()`.
 

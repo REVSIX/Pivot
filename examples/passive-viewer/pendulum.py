@@ -7,6 +7,13 @@ import time
 import mujoco
 import mujoco.viewer
 
+try:
+    import ide_telem as ide
+except ModuleNotFoundError as error:
+    if error.name != "ide_telem":
+        raise
+    ide = None
+
 
 MODEL = """
 <mujoco model="Driven pendulum">
@@ -36,11 +43,18 @@ def main():
 
     with mujoco.viewer.launch_passive(model, data) as viewer:
         start = time.monotonic()
+        next_log = 0.0
         while viewer.is_running() and data.time < args.seconds:
             data.ctrl[0] = 0.5 * math.sin(3 * data.time)
             mujoco.mj_step(model, data)
             viewer.sync()
+            if ide is not None and data.time >= next_log:
+                ide.log("Time Elapsed", data.time, unit="s", timestamp=data.time)
+                next_log = data.time + 0.05
             time.sleep(max(0, start + data.time - time.monotonic()))
+
+    if ide is not None:
+        ide.flush()
 
 
 if __name__ == "__main__":

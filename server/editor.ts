@@ -24,7 +24,7 @@ function fileRunner(cwd:string,file:string,embeddedArgs?:string[]):Launch {
     if(extension!=='.py')throw new Error('Open a Python script to run in the embedded viewer.')
     const command=projectPython(cwd)||pythonPath()||executable('python3')
     if(!command)throw new Error('Configure Python or create a .venv in the project root.')
-    return {command,args:['-u',path.join(base,'telemetry/run_embedded.py'),file,...embeddedArgs],cwd}
+    return {command,args:['-u',path.join(base,'telemetry/run_python.py'),file,...embeddedArgs],cwd}
   }
   let command:string|undefined,args:string[]=[]
   switch(extension){
@@ -132,7 +132,8 @@ export function attachEditor(
         const wsl = mode === 'wsl'
         const target = file && editor ? await inside(cwd, file, 'file') : cwd
         const runFile = !editor && url.searchParams.get('runFile')
-        const embedded = !editor && url.searchParams.get('embedded')
+        const embedded = !editor && (url.searchParams.get('embedded')
+          || (runFile && /\.py$/i.test(runFile) ? randomUUID() : undefined))
         let args:string[]|undefined
         if(embedded){
           if(!runFile||wsl||!/^[0-9a-f-]{36}$/i.test(embedded))throw new Error('Invalid embedded viewer launch.')
