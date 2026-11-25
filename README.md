@@ -15,6 +15,8 @@ Pivot is a local-first robotics IDE for editing a controller in LazyVim, running
 
 Save your work, close Pivot, and run the newer Windows x64 MSI from the [latest release](https://github.com/REVSIX/Pivot/releases/latest). Open **Pivot** again from the Start menu. The installer upgrades the existing copy in place. Your projects, last workspace, and theme stay in your user profile. See [Windows upgrade steps](docs/DESKTOP.md#update-pivot).
 
+If you previously set up live simulation or MCAP export, rerun the Python setup command below after upgrading. It updates Pivot's managed environment to MuJoCo 4.0.1 and MCAP 1.6.0.
+
 ## Quick start
 
 1. Download the `Pivot-…-windows-x64.msi` file under **Assets** in the [latest release](https://github.com/REVSIX/Pivot/releases/latest). Run it and open **Pivot** from the Start menu. The installer bundles Node, Neovim, and the pinned LazyVim plugins. Windows 10/11 x64 requires .NET Framework 4.8 and Microsoft Edge WebView2 Evergreen. The installer is unsigned.
