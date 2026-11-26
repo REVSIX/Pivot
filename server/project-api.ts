@@ -1,28 +1,67 @@
 import express from 'express'
 import path from 'node:path'
-import { lstat, mkdir, open, rename, rmdir, unlink, writeFile } from 'node:fs/promises'
+import { createHash, randomUUID } from 'node:crypto'
+import { constants } from 'node:fs'
+import { access, lstat, mkdir, open, rename, rmdir, unlink, writeFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { executable } from '../scripts/runtime.mjs'
 import { Fault, inside, relativePath, tree } from './workspace.ts'
 import { gitState, gitAction, diff, cloneRepo } from './git.ts'
 import { tasks } from './tasks.ts'
 
+const TEXT_LIMIT = 256 * 1024
+const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf])
+const revisionOf = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
+
 async function readText(cwd: string, relative: unknown) {
   const file = await open(await inside(cwd, relative, 'file'), 'r')
   try {
     const size = (await file.stat()).size
-    if (size > 256 * 1024) throw new Fault('Preview supports text files up to 256 KiB.', 413)
+    if (size > TEXT_LIMIT) throw new Fault('Preview supports text files up to 256 KiB.', 413)
     const buf = Buffer.alloc(size)
     const { bytesRead } = await file.read(buf, 0, size, 0)
     const data = buf.subarray(0, bytesRead)
     if (data.includes(0)) throw new Fault('This file is binary.', 415)
     try {
-      return new TextDecoder('utf-8', { fatal: true }).decode(data)
+      const text = new TextDecoder('utf-8', { fatal: true }).decode(data)
+      return { text, revision: revisionOf(data), bom: data.subarray(0, 3).equals(UTF8_BOM) }
     } catch {
       throw new Fault('Preview supports UTF-8 text.', 415)
     }
   } finally {
     await file.close()
+  }
+}
+async function saveText(cwd: string, file: unknown, target: string, mode: number, draft: unknown, revision: unknown) {
+  if (typeof draft !== 'string' || draft.includes('\0') || typeof revision !== 'string')
+    throw new Fault('Provide text and its original file revision.')
+  const original = await readText(cwd, file)
+  const unchanged = (actual: string) => {
+    if (actual !== revision) throw new Fault('The file changed on disk. Copy your edits before reloading it.', 409)
+  }
+  unchanged(original.revision)
+  const text = Buffer.from(draft, 'utf8')
+  const bytes = original.bom ? Buffer.concat([UTF8_BOM, text]) : text
+  if (bytes.length > TEXT_LIMIT) throw new Fault('The visual editor saves text files up to 256 KiB.', 413)
+  await access(target, constants.W_OK)
+  const temporary = path.join(path.dirname(target), '.pivot-save-' + randomUUID())
+  const staged = await open(temporary, 'wx', mode & 0o777)
+  try {
+    try {
+      await staged.writeFile(bytes)
+      if (process.platform !== 'win32') await staged.chmod(mode & 0o777)
+    } finally {
+      await staged.close()
+    }
+    const latest = await lstat(target)
+    if (!latest.isFile() || latest.isSymbolicLink())
+      throw new Fault('The file changed on disk. Copy your edits before reloading it.', 409)
+    unchanged((await readText(cwd, file)).revision)
+    await rename(temporary, target)
+    return { revision: revisionOf(bytes) }
+  } catch (error) {
+    await unlink(temporary).catch(() => {})
+    throw error
   }
 }
 async function reveal(target: string) {
@@ -62,7 +101,10 @@ async function fileAction(cwd: string, req: Record<string, unknown>) {
     if (info.isSymbolicLink())
       throw new Fault('Link entries cannot be modified through the explorer.', 403)
     const existing = await inside(cwd, req.path, 'either')
-    if (req.action === 'rename') {
+    if (req.action === 'save') {
+      if (!info.isFile()) throw new Fault('Choose a text file to save.')
+      return await saveText(cwd, req.path, existing, info.mode, req.text, req.revision)
+    } else if (req.action === 'rename') {
       const dest = await destination(cwd, req.to)
       if (
         await lstat(dest)
@@ -101,7 +143,7 @@ export function projectRoutes(root: string): express.Router {
     res.json(await tree(await folder(req.query.folder), relativePath(req.query.path ?? '.'))),
   )
   router.get('/file', async (req, res) =>
-    res.json({ text: await readText(await folder(req.query.folder), req.query.path) }),
+    res.json(await readText(await folder(req.query.folder), req.query.path)),
   )
   router.post('/file', async (req, res) => {
     const cwd = await folder(req.body?.folder)

@@ -10,7 +10,20 @@ import type {Project} from './model.ts'
 import type {Session} from './editor.ts'
 const isPython=(file:string)=>/\.py$/i.test(file)
 const instrument=new Instrument()
-let project:Project|undefined,explorer:Explorer|undefined,editor:Session|undefined
+type WorkbenchEditor=Pick<Session,'focus'|'theme'|'close'|'moved'|'runFile'>&{
+ open:(file:string)=>void|Promise<void>;hasDraft?:()=>boolean
+}
+const editorProfiles={
+ pivot:'Pivot · bundled LazyVim',
+ user:'Personal · installed Neovim configuration',
+ visual:'Visual Editor (Prototype)',
+}
+type EditorProfile=keyof typeof editorProfiles
+function activeProfile():EditorProfile{
+ const saved=readPref<EditorProfile>('profile','pivot')
+ return Object.hasOwn(editorProfiles,saved)?saved:'pivot'
+}
+let project:Project|undefined,explorer:Explorer|undefined,editor:WorkbenchEditor|undefined
 let selected='',epoch=0,refreshTimer=0,editorLoading=false,shellSequence=0,activeShell=0
 type Shell={id:number;label:string;host:HTMLElement;session?:Session;ended:boolean;runFile?:string;embedded?:string}
 const shells:Shell[]=[]
@@ -52,6 +65,12 @@ function removeShell(id:number){const i=shells.findIndex(s=>s.id===id);if(i<0)re
 function closeShell(){const sh=shells.find(s=>s.id===activeShell);if(!sh)return;if(sh.ended){removeShell(sh.id);return}confirmAction('Close terminal','End '+sh.label+' and any process running in it?','Close terminal',()=>removeShell(sh.id))}
 function refreshSoon(){clearTimeout(refreshTimer);refreshTimer=window.setTimeout(()=>{if(explorer)run(()=>explorer!.refresh())},650)}
 function showSelected(){explorer?.select(selected);updateRunButton()}
+function rememberFile(file:string){
+ if(!project)return
+ selected=file
+ pref('file.'+project.folder,file)
+ showSelected()
+}
 function fileMoved(from:string,to:string){
  if(!project)return
  editor?.moved(from,to)
@@ -81,7 +100,7 @@ function showSidebar(view:'explorer'|'git',force=false){
 let readingRunFile=false
 async function runCurrentFile(embeddedArgs?:string[]){
  const session=editor
- if(!session){message('Open a file in LazyVim first.');return}
+ if(!session){message('Open a file in the editor first.');return}
  const running=shells.find(shell=>shell.runFile&&!shell.ended)
  if(running){if(current==='code'||current==='split'){showShell();activateShell(running.id)}message('A file run is already active.');return}
  if(readingRunFile)return
@@ -104,13 +123,32 @@ async function stopRun(){
  if(!await simulation&&!terminal?.session)message('No active simulation or selected terminal.')
 }
 async function startEditor(file?:string){
- if(!project||editorLoading)return;if(editor){if(file)editor.open(file);return}
- const gen=epoch,folder=project.folder;editorLoading=true;el('editor-message').textContent='Starting LazyVim…'
- try{const {launch}=await import('./editor.ts');if(gen!==epoch)return
- editor=launch(el('editor-screen'),token,folder,'editor',{file,profile:readPref('profile','pivot')},reason=>{if(gen!==epoch)return;editor=undefined;el('editor-screen').replaceChildren();el('editor-message').replaceChildren(node('p',reason,'hint'),button('Reconnect editor',()=>startEditor(selected),'plain-action'));instrument.debug.log(reason);refreshSoon()},
+ if(!project)return
+ if(editor){if(file)await editor.open(file);return}
+ if(editorLoading)return
+ const gen=epoch,folder=project.folder,profile=activeProfile()
+ editorLoading=true
+ el('editor-kind').textContent=profile==='visual'?'Visual Editor (Prototype)':'LazyVim'
+ el('editor-message').textContent=profile==='visual'?'Starting visual editor…':'Starting LazyVim…'
+ try{
+ if(profile==='visual'){
+  const {mountVisualEditor}=await import('./visual-editor.ts')
+  if(gen!==epoch)return
+  editor=mountVisualEditor(el('editor-screen'),folder,rememberFile,refreshSoon)
+  el('editor-message').textContent=''
+  if(file)await editor.open(file)
+  return
+ }
+ const {launch}=await import('./editor.ts');if(gen!==epoch)return
+ editor=launch(el('editor-screen'),token,folder,'editor',{file,profile},reason=>{if(gen!==epoch)return;editor=undefined;el('editor-screen').replaceChildren();el('editor-message').replaceChildren(node('p',reason,'hint'),button('Reconnect editor',()=>startEditor(selected),'plain-action'));instrument.debug.log(reason);refreshSoon()},
  ()=>{if(gen!==epoch)return;el('editor-message').textContent='';if(selected&&selected!==file)editor?.open(selected);editor?.theme(appearance.selected.colors);if((current==='code'||current==='split')&&!dialog.open&&!(document.activeElement?.closest('#term-pane')))editor?.focus()})
- }catch(e){el('editor-message').textContent='Editor unavailable. See terminal setup in README.';report(e)}finally{if(gen===epoch)editorLoading=false}}
-async function openFile(file:string){if(!project)return;selected=file;pref('file.'+project.folder,file);showSelected();if(current!=='code'&&current!=='split')setMode('code');await startEditor(file)}
+ }catch(e){if(gen===epoch){if(!editor)el('editor-message').textContent='Editor unavailable.';report(e)}}finally{if(gen===epoch)editorLoading=false}}
+async function openFile(file:string){
+ if(!project)return
+ if(activeProfile()!=='visual')rememberFile(file)
+ if(current!=='code'&&current!=='split')setMode('code')
+ await startEditor(file)
+}
 let explorerOpen=0
 async function openExplorerFile(file:string){
  const request=++explorerOpen,workspace=project
@@ -126,7 +164,10 @@ async function openExplorerFile(file:string){
 }
 async function switchProject(folder:string){
  if(project?.folder===folder){close();return}
- if(editor||shells.some(s=>!s.ended)){confirmAction('Switch project','Save open buffers first. Switching ends the editor, terminals, and simulation for this project.','Switch project',()=>loadProject(folder));return}
+ if(editor||shells.some(s=>!s.ended)){
+  const explanation=editor?.hasDraft?.()?'Switching discards unsaved visual editor changes and ends this project’s terminals and simulation.':'Save open buffers first. Switching ends the editor, terminals, and simulation for this project.'
+  confirmAction('Switch project',explanation,'Switch project',()=>loadProject(folder));return
+ }
  await loadProject(folder)
 }
 async function loadProject(folder:string){
@@ -159,8 +200,24 @@ function openThemes(){
  refreshPaletteCatalog=()=>refresh(appearance.themeActions())
  if(token)void appearance.loadCatalog().then(refreshPaletteCatalog)
 }
-function settings(){choices('Workspace settings',[{label:'Themes',do:openThemes},{label:'Create custom palette',do:()=>appearance.customize()},...appearance.translucencyActions(),{label:'Workspace background',do:()=>appearance.background()},{label:'Editor profile · '+readPref('profile','pivot'),do:profileMenu},{label:'Music dock',do:music}])}
-function profileMenu(){choices('Neovim profile',['pivot','user'].map(p=>({label:p==='pivot'?'Pivot · bundled LazyVim':'Personal · installed Neovim configuration',do:()=>confirmAction('Change editor profile','Save files before restarting the editor. The personal profile loads your installed configuration.','Use profile',async()=>{pref('profile',p);editor?.close();editor=undefined;el('editor-screen').replaceChildren();await startEditor(selected)})})))}
+function settings(){choices('Workspace settings',[{label:'Themes',do:openThemes},{label:'Create custom palette',do:()=>appearance.customize()},...appearance.translucencyActions(),{label:'Workspace background',do:()=>appearance.background()},{label:'Editor profile · '+editorProfiles[activeProfile()],do:profileMenu},{label:'Music dock',do:music}])}
+function profileMenu(){
+ choices('Editor profile',(Object.keys(editorProfiles) as EditorProfile[]).map(profile=>({
+  label:editorProfiles[profile],key:profile===activeProfile()?'Active':undefined,do:()=>{
+   if(profile===activeProfile())return
+   if(editorLoading){message('Wait for the editor to finish opening.');return}
+   if(editor?.hasDraft?.()){message('Save or reload your visual editor file before switching editors.');return}
+   const detail=profile==='visual'
+    ?'LazyVim can be frustrating while you learn the controls. The visual editor is an early prototype for trying small edits. Use LazyVim for project work that needs reliable file handling and language tools. Save any open files before switching.'
+    :profile==='user'?'Save open files first. This profile loads your installed Neovim configuration.':'Save open files before switching to bundled LazyVim.'
+   confirmAction(editorProfiles[profile],detail,profile==='visual'?'Try prototype':'Use profile',async()=>{
+    pref('profile',profile);editor?.close();editor=undefined;el('editor-screen').replaceChildren()
+    if(current!=='code'&&current!=='split')setMode('code')
+    await startEditor(selected||undefined)
+   })
+  }
+ })))
+}
 function music(){const host=el('spotify-frame')
  if(host.children.length){host.replaceChildren();host.hidden=true;el('music-caption').textContent='Open player';return}
  promptText('Spotify player','Spotify track, playlist, album, or episode URL',readPref('spotify',''),value=>{
@@ -219,7 +276,13 @@ function palette(){
 }
 for(const i of document.querySelectorAll<HTMLElement>('[data-icon]'))i.innerHTML=icon(i.dataset.icon!)
 el('window-controls').hidden=!native
-for(const b of document.querySelectorAll<HTMLButtonElement>('[data-window]'))b.onclick=()=>bridge(b.dataset.window!)
+for(const b of document.querySelectorAll<HTMLButtonElement>('[data-window]'))b.onclick=()=>{
+ if(b.dataset.window==='close'&&editor?.hasDraft?.()){
+  confirmAction('Close Pivot','Closing discards unsaved visual editor changes.','Discard and close',()=>bridge('close'))
+  return
+ }
+ bridge(b.dataset.window!)
+}
 const drag=document.querySelector<HTMLElement>('.title-drag')!;drag.onpointerdown=e=>{if(e.button===0&&native)bridge('drag')};drag.ondblclick=()=>bridge('maximize')
 el('settings').onclick=settings;el('palette').onclick=()=>palette();el('music').onclick=music;el('dismiss').onclick=close
 el('project-name').onclick=()=>run(()=>browse());el('branch').onclick=()=>explorer?.gitMenu();el('git-menu').onclick=()=>explorer?.gitMenu();el('new-file').onclick=()=>explorer?.files();el('refresh').onclick=()=>run(()=>explorer?.refresh())

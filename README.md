@@ -57,6 +57,10 @@ Press **Ctrl+Shift+P** to open the command palette. Type to filter, use **↑/�
 
 ## LazyVim essentials
 
+LazyVim is Pivot’s default editor. The learning curve can be frustrating at first. To try mouse-driven editing, open **Ctrl+Shift+P → Editor profile → Visual Editor (Prototype)**. The prototype is for trying small edits in UTF-8 files. Use LazyVim for day-to-day project work and language-server features.
+
+In the prototype, open a file from Explorer, edit it, use **Ctrl+S** or **Save**, and choose **Run file**. Press **Esc**, then **Tab**, to move focus out of the editor. It edits one file at a time up to 256 KiB and provides basic Python syntax highlighting and completions. Save your changes before leaving the workspace.
+
 Start with **Esc** for Normal mode, **i** to type, **:w** to save, **u** to undo, and **Space** to discover commands. Use **Space f f** to find files, **Space s g** to search project text, and **Shift+h / Shift+l** to switch buffers. See the [Pivot LazyVim cheat sheet](docs/LAZYVIM.md) and the [official LazyVim keymaps](https://www.lazyvim.org/keymaps).
 
 The bundled LazyVim profile shows indent guides by default. The guides follow the active Pivot theme, and the current scope uses its accent color.
