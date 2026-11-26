@@ -53,6 +53,7 @@ Press **Ctrl+Shift+P** to open the command palette. Type to filter, use **↑/�
 | Share a simulation clip | Use the download icon next to **Reset camera** for JPEG, MP4, or GIF. Drag the range ticks, play the loop to review it, then confirm the export in the viewport. |
 | Change the look | Type **Theme**, then press **Enter**. The picker opens at your active theme. Browse to preview and press **Enter** to apply. University themes are after Monkeytype. The footer shows the active theme. |
 | Run a build or inspect a device | Search for **Task** to run a project task. **Serial Monitor** uses PlatformIO Core when installed and configured. |
+| Start a focus timer | Open **Fidgetbox → Pomodoro** from the palette. Pause or resume in the timer menu or with the small button beside the header timer. Use the gear to set focus and break lengths, schedule a long break after a set number of sessions, or enable a bell that repeats for about 10 seconds. Pivot remembers these settings. |
 
 ## LazyVim essentials
 
