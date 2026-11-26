@@ -49,6 +49,16 @@ dialog:has(.choice.selected[data-preview])::backdrop{background:#080a1233}
 @keyframes ambient-color{from{background-position:0% 0%}to{background-position:100% 100%}}
 @media(prefers-reduced-motion:reduce){:root[data-ambient=true] #workbench::before{animation:none}}
 .break-clock,.typing-target{display:block;margin:8px 0;font:16px/1.7 var(--mono)}
+.pomodoro-clock{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pomodoro-clock .break-clock{font-size:28px;font-variant-numeric:tabular-nums}
+.pomodoro-clock button{padding:6px}
+.pomodoro-actions{display:flex;align-items:center;gap:8px}
+.pomodoro-actions button:last-child{margin-inline-start:auto}
+.pomodoro-settings{display:grid;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font:12px var(--sans)}
+.pomodoro-settings label{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pomodoro-settings input[type=number]{width:76px}
+.pomodoro-settings .pomodoro-bell{justify-content:flex-start}
+.pomodoro-settings button{justify-self:start}
 .query[aria-invalid=true]{border-color:var(--danger)}
 .snake-board{display:block;max-width:100%;margin:8px 0;border:1px solid var(--line)}
 
@@ -76,7 +86,12 @@ dialog:has(.split-diff){width:min(1160px,96vw);max-height:89vh}
 #play{width:auto;padding:0 6px;font:10px var(--mono)}
 @media(max-width:900px){#select-model span{display:none}}
 
-#pomodoro-header{height:30px;padding:0 9px;margin-right:9px;border:1px solid var(--line);border-radius:5px;background:var(--accent-surface);color:var(--accent);font:11px var(--mono)}
+#pomodoro-mini{display:flex;align-items:center;gap:4px;margin-right:9px}
+#pomodoro-header,#pomodoro-playback{height:30px;border:1px solid var(--line);border-radius:5px;background:var(--accent-surface);color:var(--accent)}
+#pomodoro-header{padding:0 9px;font:11px var(--mono)}
+#pomodoro-playback{width:28px;padding:0}
+#pomodoro-playback:hover{border-color:var(--accent)}
+#pomodoro-playback svg{width:13px;height:13px}
 #pomodoro-time{font-variant-numeric:tabular-nums;font-weight:600}
 #pomodoro-header.pomodoro-ready{border-color:var(--accent)}
 .typing-target{color:var(--muted)}
