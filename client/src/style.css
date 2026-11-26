@@ -62,6 +62,19 @@ dialog:has(.choice.selected[data-preview])::backdrop{background:#080a1233}
 .query[aria-invalid=true]{border-color:var(--danger)}
 .snake-board{display:block;max-width:100%;margin:8px 0;border:1px solid var(--line)}
 
+.pty-screen.visual-editor{display:flex;flex-direction:column;padding:0}
+.visual-filebar{display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid var(--line);font:11px var(--mono);flex:none}
+.visual-file-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.visual-filebar button{padding:4px 8px}
+.visual-editor-surface{min-height:0;min-width:0;flex:1;overflow:hidden}
+.visual-editor-surface .cm-editor{height:100%;color:var(--text);background:var(--panel)}
+.visual-editor-surface .cm-scroller{font:12px/1.6 var(--mono)}
+.visual-editor-surface .cm-gutters{color:var(--muted);background:var(--panel);border-color:var(--line)}
+.visual-editor-surface .cm-activeLine,.visual-editor-surface .cm-activeLineGutter{background:var(--surface)}
+.visual-editor-surface .cm-selectionLayer .cm-selectionBackground,.visual-editor-surface .cm-editor.cm-focused .cm-selectionLayer .cm-selectionBackground{background:var(--sel)}
+.visual-editor-surface .cm-cursor{border-left-color:var(--accent)}
+.visual-editor-surface .cm-tooltip{color:var(--text);background:var(--surface);border-color:var(--line)}
+.visual-editor-surface .cm-tooltip-autocomplete li[aria-selected=true]{color:var(--text);background:var(--sel)}
 .shell-instance{display:flex;flex-direction:column}
 .shell-screen{position:relative;flex:1;min-height:0;overflow:hidden}
 .shell-exit{flex:none;color:var(--muted);font:10px/1.4 var(--mono);padding:4px 7px;border-top:1px solid var(--line)}
