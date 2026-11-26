@@ -11,6 +11,19 @@ Pivot is a local-first robotics IDE for editing a controller in LazyVim, running
 
 <!-- Add the main workspace GIF here. Suggested path: docs/media/workspace.gif -->
 
+## Switch editors
+
+1. Press **Ctrl+Shift+P** to open the command palette.
+2. Search for **Editor profile** and press **Enter**.
+3. Choose **Visual Editor (Prototype)** for mouse-driven editing. To switch back, choose **Pivot · bundled LazyVim** from the same menu.
+
+> [!WARNING]
+> **LazyVim is the default and the recommended editor for project work.** Its learning curve can be frustrating at first. The Visual Editor is an early prototype for trying small edits in one file at a time. Use LazyVim for day-to-day work that needs dependable file handling and language-server tools.
+
+<!-- Place editor-profile screenshots here. Show the palette search and the profile picker. -->
+
+See [what’s new in Pivot 0.4.5](docs/releases/v0.4.5.md).
+
 ## Update an existing installation
 
 Save your work, close Pivot, and run the newer Windows x64 MSI from the [latest release](https://github.com/REVSIX/Pivot/releases/latest). Open **Pivot** again from the Start menu. The installer upgrades the existing copy in place. Your projects, last workspace, and theme stay in your user profile. See [Windows upgrade steps](docs/DESKTOP.md#update-pivot).
@@ -56,10 +69,6 @@ Press **Ctrl+Shift+P** to open the command palette. Type to filter, use **↑/�
 | Start a focus timer | Open **Fidgetbox → Pomodoro** from the palette. Pause or resume in the timer menu or with the small button beside the header timer. Use the gear to set focus and break lengths, schedule a long break after a set number of sessions, or enable a bell that repeats for about 10 seconds. Pivot remembers these settings. |
 
 ## LazyVim essentials
-
-LazyVim is Pivot’s default editor. The learning curve can be frustrating at first. To try mouse-driven editing, open **Ctrl+Shift+P → Editor profile → Visual Editor (Prototype)**. The prototype is for trying small edits in UTF-8 files. Use LazyVim for day-to-day project work and language-server features.
-
-In the prototype, open a file from Explorer, edit it, use **Ctrl+S** or **Save**, and choose **Run file**. Press **Esc**, then **Tab**, to move focus out of the editor. It edits one file at a time up to 256 KiB and provides basic Python syntax highlighting and completions. Save your changes before leaving the workspace.
 
 Start with **Esc** for Normal mode, **i** to type, **:w** to save, **u** to undo, and **Space** to discover commands. Use **Space f f** to find files, **Space s g** to search project text, and **Shift+h / Shift+l** to switch buffers. See the [Pivot LazyVim cheat sheet](docs/LAZYVIM.md) and the [official LazyVim keymaps](https://www.lazyvim.org/keymaps).
 
